@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Datasets and checkpoints live outside the repo (~/datasets, ~/models)
+*.hdf5
+*.h5
+*.parquet
+*.mp4
+*.usdz
+
+# Logs
+*.log
+*.etli
