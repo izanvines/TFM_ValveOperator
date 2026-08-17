@@ -157,6 +157,37 @@ Freeze or drop those three dims rather than relying on operator discipline.
 `isaaclab_arena_gr00t/policy/config/` — `g1_static_apple_gr00t_closedloop_config.yaml` is the
 template to copy.
 
+## Do not swap the robot
+
+The G1 used here is spawned from Isaac Nucleus, traced as
+`g1_valve_environment.py:150` → embodiment `g1_wbc_agile_pink`
+(`isaaclab_arena/embodiments/g1/g1.py:177`) → `G1_AGILE_CFG` (`g1.py:458`) → `G1_CFG` (`g1.py:238`):
+
+```python
+usd_path = f"{ISAAC_NUCLEUS_DIR}/Samples/Groot/Robots/g1_29dof_with_hand_rev_1_0.usd"
+```
+
+This is the **`with_hand`** model — 7 actuated joints per hand (`thumb_0/1/2`, `index_0/1`,
+`middle_0/1`), which is exactly why `gr00t_43dof_joint_space.yaml` is 43 DoF: 29 body + 7 + 7.
+
+jescobars' setup is built on a different framework (`unitree_rl_lab`, plain IsaacLab
+`InteractiveSceneCfg`) around the **`with_inspire`** G1 — a different hand kinematics with
+different joint names. Replacing the robot USD would break, in cascade: the actuator gains in
+`G1_AGILE_CFG`, the joint ordering the AGILE ONNX policy expects (loss of balance), the retargeter
+and Pink IK config, and the 43-DoF joint space that the GR00T conversion and fine-tune configs are
+built on. **Take the valve asset only.**
+
+Consequently none of these are needed: `g1_inspire_arm_collisions.usda`, the `vendor_g1_inspire.usd`
+symlink, `tasks/.../valve/base_cfg.py` (Arena composes scenes via the asset registry +
+`Scene(assets=[...])`, which `g1_valve_environment.py` already does), or the hardcoded
+`UNITREE_MODEL_DIR`. No access to `TR-ROBOTICS/unitree_rl_lab` is required — one USD file is.
+
+Transplanting the valve touches only the `Valve` class in
+`isaaclab_arena/assets/object_library.py:203-231` (`usd_path`, `openable_joint_name` — the RL rig
+will not call it `valve_joint` — and the joint limits that Arena maps to openness 0→1), plus
+`VALVE_SPAWN_XYZ` in `g1_valve_environment.py:35` to keep the wheel within arm reach. A `.usda` may
+carry `subLayers`/`references`/`payloads`; make sure the asset arrives self-contained.
+
 ## Things that cost hours if forgotten
 
 Distilled from `~/TFM/TELEOP_G1_VALVE.md` and `~/TFM/ESTADO_TELEOP_XR.md`:
@@ -205,8 +236,7 @@ it onto a branch is worth doing early.
   (`generate_dataset.py`) was considered and rejected as a schedule risk.
 - **PICO 4 Ultra**, real headset, already proven to connect.
 - Gaussian-Splatting backdrop **out of scope**; the diáfano scene is the deliverable.
-- **Base scene comes from jescobars' (Javi's) environment**, for its real articulated valve, adapted
-  to keep the robot standing under AGILE rather than statically locked at the base.
+- **Only the valve asset is taken from jescobars' (Javi's) work** — see "Do not swap the robot".
 - Robot **stays standing under the AGILE policy** — this mirrors the real deployment. Locomotion
   commands are to be frozen/removed from the action space, not merely left untouched (see above).
 
