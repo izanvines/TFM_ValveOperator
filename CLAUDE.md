@@ -109,7 +109,47 @@ Data configs for this embodiment already exist:
 which checkpoint generation is actually loadable before promising N1.7 in the thesis.
 
 **Stage 3B — ACT/Diffusion.** Not started. LeRobot must be installed in a **separate** Python
-environment; do not pip-install it into the Isaac Sim interpreter.
+environment; do not pip-install it into the Isaac Sim interpreter — LeRobot pins its own
+torch/torchvision and would break the simulator you need for evaluation.
+
+The two approaches **share the simulation env, the recording and the conversion**. GR00T-LeRobot is
+a superset of plain LeRobot v2.x: same parquet/video/`info.json`/`tasks.jsonl` layout, plus a
+`modality.json` that ACT ignores. One conversion feeds both — verify this with a single demo before
+recording in bulk.
+
+Cross-environment evaluation is already solved by the repo, so ACT is scored in the *same*
+simulator with the *same* metric:
+
+- `policy_runner.py --policy_type` accepts **any dotted import path**, not a fixed list
+  (`isaaclab_arena/evaluation/policy_runner.py:39-48`) — register a custom policy class.
+- `isaaclab_arena/remote_policy/` is a ZMQ client/server. Run ACT as a `PolicyServer` in its own
+  venv; the sim connects as a client. `isaaclab_arena_gr00t/policy/gr00t_remote_closedloop_policy.py`
+  is the working example, and `replay_lerobot_action_policy.py` shows how LeRobot-format actions
+  are consumed inside the sim.
+
+## Action space — 23 dims
+
+From `isaaclab_arena_g1/g1_env/mdp/actions/g1_decoupled_wbc_pink_action.py:226-234`:
+
+```
+[0]      left_hand_state             1   0=open, 1=close
+[1]      right_hand_state            1
+[2:5]    left_arm_pos                3   xyz
+[5:9]    left_arm_quat               4   xyzw
+[9:12]   right_arm_pos               3
+[12:16]  right_arm_quat              4
+[16:19]  navigate_cmd                3   locomotion velocity
+[19]     base_height_cmd             1
+[20:23]  torso_orientation_rpy_cmd   3
+```
+
+**Standing under AGILE is not the same as having the nav channel in the action space.** The design
+keeps AGILE balancing the legs (that is the realism argument and it stays), but if the operator
+simply never touches the joystick, dims `[16:19]` are **constant zero across all 400 demos**. Two
+consequences: normalization statistics get std=0 on those dims (division by zero, or an epsilon
+that amplifies noise), and at inference a noisy action head can emit a nonzero `navigate_cmd` and
+walk the robot away mid-evaluation — `NAVIGATE_THRESHOLD` gives a deadband but no guarantee.
+Freeze or drop those three dims rather than relying on operator discipline.
 
 **Stage 4 — evaluate.** `isaaclab_arena/evaluation/policy_runner.py`, e.g. with
 `--policy_type zero_action` as a smoke test. Recorder terms `success_rate` and
@@ -165,6 +205,10 @@ it onto a branch is worth doing early.
   (`generate_dataset.py`) was considered and rejected as a schedule risk.
 - **PICO 4 Ultra**, real headset, already proven to connect.
 - Gaussian-Splatting backdrop **out of scope**; the diáfano scene is the deliverable.
+- **Base scene comes from jescobars' (Javi's) environment**, for its real articulated valve, adapted
+  to keep the robot standing under AGILE rather than statically locked at the base.
+- Robot **stays standing under the AGILE policy** — this mirrors the real deployment. Locomotion
+  commands are to be frozen/removed from the action space, not merely left untouched (see above).
 
 ## Current state
 
