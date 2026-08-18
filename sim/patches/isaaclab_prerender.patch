@@ -1,0 +1,84 @@
+From 2a2744265c58c098d11397632d8a234784a6f2fc Mon Sep 17 00:00:00 2001
+From: ivines <aldemilopez@gmail.com>
+Date: Tue, 18 Aug 2026 14:28:24 +0200
+Subject: [PATCH] Render before building the managers so RTX sensors have a
+ frame
+
+`_init_sim` calls `scene.update()` with the comment that it is "needed for the
+observation manager to get valid tensors for initialization", but `scene.update()`
+never renders. An RTX sensor has no frame until something renders, so the first
+thing `ObservationManager._prepare_terms` does with an `image` term is ask a camera
+for data that does not exist yet.
+
+Without XR that resolves itself. With XR active it does not. The tiled camera blocks
+forever in `isaac_rtx_renderer.render()` -> `wp.launch(reshape_tiled_image)`; with
+GPU physics the same situation surfaces earlier as `CUDA error: an illegal memory
+access was encountered` in `GpuArticulationView`. The non-tiled camera does not
+block but returns an empty buffer, so the observation term is built with shape (0,)
+and no image ever reaches the dataset. Either way, teleoperated recording with
+cameras is impossible.
+
+Scenes that load a large background USD happen to work, which is what made this look
+like a scene-content problem for most of a day: the extra load time lets the renderer
+produce a frame before anything asks for one. Ruled out by measurement on 2026-08-18,
+all in the bare ground-plane-and-dome-light scene: hiding the ground grid, fixing the
+ground material's missing textures, registering an empty background asset, adding
+visible geometry in the camera's view, the dome light sampling strategy, the light
+type, DLSS and rendermode, and pinning the robot root. None of them help; only
+slow-loading assets do. That is a race, not a content requirement.
+
+Four renders, only when RTX sensors are present, disabled with ARENA_PRERENDER=0.
+RTX needs one warm-up frame anyway -- render 0 comes back black, render 1 has pixels.
+
+With this, the bare scene records a demonstration whose camera stream is
+(301, 480, 640, 3) with zero black frames.
+
+Signed-off-by: ivines <aldemilopez@gmail.com>
+---
+ .../isaaclab/envs/manager_based_env.py        | 30 +++++++++++++++++++
+ 1 file changed, 30 insertions(+)
+
+diff --git a/source/isaaclab/isaaclab/envs/manager_based_env.py b/source/isaaclab/isaaclab/envs/manager_based_env.py
+index 996e88216e..e7ed3e014f 100644
+--- a/source/isaaclab/isaaclab/envs/manager_based_env.py
++++ b/source/isaaclab/isaaclab/envs/manager_based_env.py
+@@ -195,6 +195,36 @@ class ManagerBasedEnv:
+             # this shouldn't cause an issue since later on, users do a reset over all the environments
+             # so the lazy buffers would be reset.
+             self.scene.update(dt=self.physics_dt)
++
++            # LOCAL PATCH (2026-08-18): pump a few renders before the managers are built.
++            #
++            # The comment above says the scene update is "needed for the observation manager
++            # to get valid tensors for initialization", but `scene.update()` never renders.
++            # An RTX sensor has no frame until something renders, so the first thing
++            # `ObservationManager._prepare_terms` does with an `image` term is ask a camera
++            # for data that does not exist yet.
++            #
++            # Without XR that resolves itself. With XR active it does not: the tiled camera
++            # blocks forever in `isaac_rtx_renderer.render()` -> `wp.launch` (with GPU physics
++            # the same situation surfaces as `CUDA illegal memory access` in
++            # `GpuArticulationView`), and the non-tiled camera returns an empty buffer, so the
++            # observation term is built with shape (0,) and no image ever reaches the dataset.
++            #
++            # Scenes that load a large background USD happen to work, which is what made this
++            # look like a scene-content problem: the extra load time lets the renderer produce
++            # a frame before it is asked for. Measured on 2026-08-18: hiding the ground grid,
++            # registering an empty background, and adding visible geometry all fail to help --
++            # only slow-loading assets do. That is a race, not a content requirement.
++            #
++            # RTX also needs one warm-up frame: render 0 comes back black, render 1 has pixels.
++            # Set ARENA_PRERENDER=0 to disable this patch.
++            if bool(self.sim.get_setting("/isaaclab/render/rtx_sensors")):
++                import os as _os
++
++                _n = int(_os.environ.get("ARENA_PRERENDER", "4"))
++                for _ in range(_n):
++                    self.sim.render()
++
+         # add timeline event to load managers
+         self.load_managers()
+ 
+-- 
+2.43.0
+

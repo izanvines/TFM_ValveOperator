@@ -17,6 +17,7 @@ sim/
 │   ├── valve_rig.usdz                     la válvula CAD (de jescobars, ver PROVENANCE)
 │   ├── valve_rig_arena.usda               capa propia sobre el .usdz -- lee su `doc`
 │   └── valve_rig_PROVENANCE.md            de dónde sale el CAD y cómo se verificó
+├── config/g1_valve_config.yaml            conversión HDF5 -> GR00T-LeRobot
 ├── patches/                               cambios sobre ficheros de upstream
 ├── scripts/                               utilidades de medida y diagnóstico
 └── sync.sh                                mueve todo esto al checkout vivo, y al revés
@@ -67,6 +68,7 @@ versión nueva de Arena.
 | `teleop.patch` | hace el DLSS opcional vía `ARENA_XR_ANTIALIASING` (si no, fuerza `RealTimePathTracing` y sobreexpone) |
 | `record_demos.patch` | lo mismo para la ruta de grabación |
 | `background_library.patch` | fondo Gaussian-Splatting (fuera del alcance del TFM, pero el parche existe) |
+| `isaaclab_prerender.patch` | **el que desbloquea la grabación**: `manager_based_env.py` renderiza antes de construir los managers, para que la cámara RTX tenga fotograma cuando el ObservationManager se lo pida. Sin él, grabar con cámaras bajo XR se cuelga (o revienta con `CUDA illegal memory access` si la física va en GPU) |
 | `isaaclab_submodule.patch` | `xr_anchor_manager.py`: crea el prim de anclaje XR con USD crudo cuando `SingleXFormPrim` falla. Sin esto quedas anclado a la altura de la pelvis dentro del casco |
 
 Un `git checkout` o un `git submodule update` en el checkout vivo **borra estos cambios sin
@@ -83,6 +85,7 @@ Van montados en el contenedor como `/eval/arena_extras/` (el mount `~/eval` → 
 | `capture_viewport.py` | saca un PNG del viewport. Sirve para descartar el render antes de culpar a la red |
 | `test_valve_torque.py` | intenta girar el volante con un par conocido. **Ojo: el camino de fuerzas externas es un no-op en este backend**, el test da 0.00° incluso con 50 N·m |
 | `inspect_valve_physics.py` | vuelca los parámetros de física del rig ya compuestos |
+| `inspect_hdf5.py` | audita un HDF5 grabado: demos, éxito, forma de las acciones, dims constantes, fotogramas de cámara negros. h5py puro, no arranca Isaac Sim |
 | `hold_pose_policy.py` | acción de "quedarse de pie" estable. Documenta dos trampas de convención |
 | `record_robotcam_video.py` | graba la cámara del robot a PNGs para montar un vídeo |
 | `launch_record_valve.sh` | wrapper de grabación con guardia de red para la API de Lightwheel |

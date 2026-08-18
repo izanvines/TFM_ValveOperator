@@ -179,7 +179,7 @@ docker exec -w /workspaces/isaaclab_arena isaaclab_arena-latest bash -c \
   export OFFICE_GS_LIGHT=1500 && export ARENA_VALVE_EPISODE_S=20 && \
   mkdir -p /datasets/isaaclab_arena/g1_valve && \
   /isaac-sim/python.sh -u isaaclab_arena/scripts/imitation_learning/record_demos.py \
-    --device cpu --enable_cameras \
+    --viz kit --device cpu --enable_cameras --livestream 2 \
     --dataset_file /datasets/isaaclab_arena/g1_valve/g1_valve_session_$(date +%Y%m%d_%H%M%S).hdf5 \
     --num_demos 20 --num_success_steps 10 --disable_full_sim_buffer_reset \
     --kit_args="--/renderer/multiGpu/enabled=false --/renderer/activeGpu=0 --/persistent/xr/profile/ar/renderQuality=performance --/rtx/rendermode=RaytracedLighting --/rtx/post/tonemap/op=2" \
@@ -190,6 +190,13 @@ El HDF5 sale en `~/datasets/isaaclab_arena/g1_valve/`.
 
 Diferencias respecto al modo B, y por qué:
 
+- **`--viz kit` es obligatorio.** Está en la receta de referencia de NVIDIA
+  (`docs/pages/example_workflows/static_apple/step_2_teleoperation.rst:242`). Sin él no hay
+  viewport, y con `--livestream 2` además tienes el monitor de 3ª persona para pulsar la
+  pestaña XR si hiciera falta.
+- **Con XR, `record_demos.py` arranca EN PAUSA.** `record_demos.py:433` hace
+  `running_recording_instance = not args_cli.xr`, así que hay que pulsar **START** en el mando
+  para que empiece a grabar. Hasta entonces solo renderiza.
 - **`--device cpu`, no `cuda`.** Con física en GPU, XR y `--enable_cameras` a la vez, el entorno
   muere al crearse con `CUDA error: an illegal memory access was encountered`, dentro de
   `GpuArticulationView.cpp`. Reproducido y aislado el 2026-08-18: GPU+cámaras sin XR va bien,
@@ -265,7 +272,9 @@ que de verdad lo sujeta.
 | Conecta la señalización, nunca llega imagen | falta la regla UDP en ufw | ver §0 |
 | `VK_ERROR_OUT_OF_DEVICE_MEMORY` | multi-GPU en XR | `--kit_args` con `multiGpu=false` + `activeGpu=0` |
 | 1 FPS en las gafas | falta `renderQuality=performance` / sobra el monitor | ver §B |
-| `CUDA error: an illegal memory access` al crear el entorno | física en GPU + XR + cámaras | `--device cpu` |
+| `CUDA error: an illegal memory access` al crear el entorno | falta el parche de pre-render: la cámara RTX no tiene fotograma cuando el ObservationManager se lo pide | aplicar `sim/patches/isaaclab_prerender.patch`; además `--device cpu` |
+| Se cuelga al crear el entorno, sin error | lo mismo, con física en CPU en vez de GPU | igual |
+| El término de cámara sale con forma `(0,)` | lo mismo, con la cámara no-*tiled* | igual |
 | La válvula no gira al agarrarla | `drive:angular:physics:damping` alto | está en `sim/assets/valve_rig_arena.usda` |
 | El robot gira al hacer fuerza | `ARENA_FIX_BASE=0` | ponlo a 1 |
 | "active XRSession already exists" | varias pestañas conectadas | deja una y relanza el teleop |

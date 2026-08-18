@@ -376,45 +376,73 @@ unaffected.
 `ARENA_STATIC_BASE` and `ARENA_FIX_BASE` are not the same thing and neither replaces the other:
 the first stops the operator walking the robot away, the second stops physics moving it.
 
-## Current state (2026-08-18)
+## Current state (2026-08-18, evening)
 
-**Zero demonstrations recorded** — but teleoperation now works end to end and the task is
-actually performable, which was not true yesterday.
+**One demonstration recorded, verified, and converted.** The pipeline runs end to end for the
+first time: teleoperate → HDF5 with camera frames → GR00T-LeRobot dataset.
 
-Verified in the headset on 2026-08-18:
+The recorded demo (`~/datasets/isaaclab_arena/g1_valve/g1_valve_demo01.hdf5`, 97 MB):
 
-- The PICO 4 Ultra connects (CloudXR + the WSS proxy on **48322**, the only port the headset
-  talks to — `isaacteleop/cloudxr/wss.py:244-245`).
-- ~20 FPS in stereo, controllable. It was 1 FPS until
-  `--/persistent/xr/profile/ar/renderQuality=performance` and
-  `--/rtx/rendermode=RaytracedLighting` went in, and until the third-person monitor came out —
-  it costs a whole render product.
-- **The operator can turn the valve.** The rig shipped with
-  `drive:angular:physics:damping = 100`, `stiffness = 0`, `targetVelocity = 0`: a viscous brake
-  needing ~1000 N·m for 10 °/s, against the couple of N·m a G1 hand delivers at the 0.10 m
-  wheel radius. `valve_rig_arena.usda` lowers it to `0.01`. That value is *not* verified
-  synthetically — `test_valve_torque.py` reads 0.00° even at 50 N·m because the external-wrench
-  path is a no-op on this backend — only by teleoperation. Raise it toward 0.05–0.1 for a
-  heavier, more realistic valve.
-- The pelvis is pinned (see the reversed decision above).
+| | |
+|---|---|
+| `success` | `True`, 301 steps = 6.0 s at 50 Hz |
+| valve joint | reaches 3.494 rad = **200°**, openness 0.556 over the 0.5 threshold |
+| `/camera_obs/robot_head_cam_rgb` | (301, 480, 640, 3) uint8, **zero black frames**, mean 82 |
+| `/actions` | (301, 23) |
+| robot `root_velocity` | all zeros — the pinned pelvis holds under load |
+| `navigate_cmd` | constant 0 — `ARENA_STATIC_BASE` works |
+
+Converted with `isaaclab_arena_gr00t/lerobot/config/g1_valve_config.yaml` (a copy of the apple
+config with only `data_root`, `language_instruction`, `task_index`, `hdf5_name` changed):
+300-row parquet, `observation.state` and `action` both (300, 43), h264 ego_view at 50 fps.
+The `fps: 50` is now measured, not assumed — `--step_hz 30` only throttles wall-clock pacing,
+while the dataset gets one row per environment step at decimation 4 × dt 0.005 = 50 Hz.
+
+### The bug that blocked recording all day
+
+Recording with `--enable_cameras` under XR was impossible until `manager_based_env.py` was
+patched. `_init_sim` calls `scene.update()` under a comment saying it is "needed for the
+observation manager to get valid tensors", but `scene.update()` never renders, so an RTX
+sensor has no frame when `ObservationManager._prepare_terms` asks the camera for one. Without
+XR it resolves itself; with XR the tiled camera blocks forever in `wp.launch`, and with GPU
+physics the same situation surfaces as `CUDA illegal memory access` in `GpuArticulationView`.
+The non-tiled camera returns an empty buffer instead, giving an observation term of shape
+`(0,)` — no image ever reaches the dataset.
+
+Scenes with a large background USD work by accident, because the load time lets a frame get
+produced first. That made it look like a scene-content problem for hours. Ruled out by
+measurement: hiding the ground grid, the ground material's missing textures (downloaded and
+fixed anyway), an empty background asset, visible geometry in view, the dome light sampling
+strategy, the light type, DLSS/rendermode, and `fix_root_link`. The fix is
+`sim/patches/isaaclab_prerender.patch` — four renders before the managers are built, gated on
+RTX sensors being present, disabled with `ARENA_PRERENDER=0`.
+
+Recording also needs **`--viz kit`** (NVIDIA's own reference recipe) and **`--device cpu`**, and
+under XR `record_demos.py` starts **paused** — the operator presses START.
+
+### Two data-quality findings from the first demo
+
+- **The hands never close.** Action dims `[0]` and `[1]` (`left_hand_state`, `right_hand_state`)
+  are constant 0 for the whole episode: the wheel was turned by pushing with an open hand, not
+  by grasping a spoke. Whatever is decided, it has to be consistent across all 400 demos.
+- **Eight of 23 dims have std = 0**: `[0,1]` hands, `[16,17,18]` locomotion, `[20,21,22]` torso
+  orientation. Normalisation divides by that. Concrete evidence for the "freeze or drop the
+  locomotion dims" item below.
+
+Also measured: the wheel reached −11.8 rad/s (−677 °/s), so `damping = 0.01` leaves it spinning
+loosely. For a heavier, more realistic valve raise **`physxJoint:jointFriction`** (dry friction,
+a constant break-away torque, which is how a real gate valve behaves) rather than the damping
+(viscous, speed-proportional).
 
 Not yet done, in order:
 
-1. **Record one demo end to end** and confirm the HDF5 holds an episode with camera frames.
-   Recording has never once succeeded here — `LAUNCH.md` §C has the command.
-2. Convert that single demo to LeRobot (copy `g1_static_apple_config.yaml`) before recording
-   in bulk.
-3. Freeze or drop the locomotion dims `[16:19]` from the action space. `ARENA_STATIC_BASE=1`
-   freezes them at record time; whether they should be *dropped* from the 23-dim action layout
-   before the GR00T conversion is still open.
-4. ~~Get the Arena work onto a branch.~~ **Done 2026-08-18.** `~/TFM/IsaacLab-Arena` is on branch
-   `tfm/g1-valve` (3 commits) and its `submodules/IsaacLab` on a branch of the same name (1
-   commit, recorded as the submodule pointer). Both working trees are clean. Local noise (etli
-   dumps, `.bak`, `.s3bak`, logs) is filtered through `.git/info/exclude`, which is local-only and
-   does not dirty the third-party repo. Neither branch is pushed anywhere; if either ever is, the
-   submodule must be pushed with it or the recorded hash will not resolve.
-5. The 400-demo session.
-6. In parallel: a separate venv with LeRobot for the ACT arm.
+1. Decide the grasp-vs-push question above, then **record the 400-demo session**.
+2. Freeze or drop the locomotion dims `[16:19]` from the 23-dim action layout before the GR00T
+   conversion.
+3. A separate venv with LeRobot for the ACT arm.
+4. Merge per-session HDF5s with `merge_demos.py` (validates format_version, action shape,
+   observation keys and camera geometry).
 
-Open, lower priority: the valve floats with no standpipe down to the floor (looks poor in thesis
-figures); the `ViewerCfg` third-person framing is not great for figures.
+Open, lower priority: the valve floats with no standpipe (a probe sphere proved extra geometry
+is not needed for the *bug*, but the standpipe is still worth it for the thesis figures); the
+`ViewerCfg` third-person framing is poor for figures.

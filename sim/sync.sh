@@ -38,6 +38,7 @@ NUEVOS=(
   "assets/valve_rig_arena.usda:isaaclab_arena/assets/usd/valve_rig_arena.usda"
   "assets/valve_rig.usdz:isaaclab_arena/assets/usd/valve_rig.usdz"
   "assets/valve_rig_PROVENANCE.md:isaaclab_arena/assets/usd/valve_rig_PROVENANCE.md"
+  "config/g1_valve_config.yaml:isaaclab_arena_gr00t/lerobot/config/g1_valve_config.yaml"
 )
 
 # ficheros de upstream que llevan parche local
@@ -51,8 +52,8 @@ PARCHEADOS=(
 )
 
 SCRIPTS=(stream_valve.py measure_valve_rig.py capture_viewport.py test_valve_torque.py
-         inspect_valve_physics.py hold_pose_policy.py record_robotcam_video.py
-         launch_record_valve.sh)
+         inspect_valve_physics.py inspect_hdf5.py hold_pose_policy.py
+         record_robotcam_video.py launch_record_valve.sh)
 
 accion="${1:-diff}"
 
