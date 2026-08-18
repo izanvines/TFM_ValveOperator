@@ -179,7 +179,7 @@ docker exec -w /workspaces/isaaclab_arena isaaclab_arena-latest bash -c \
   export OFFICE_GS_LIGHT=1500 && export ARENA_VALVE_EPISODE_S=20 && \
   mkdir -p /datasets/isaaclab_arena/g1_valve && \
   /isaac-sim/python.sh -u isaaclab_arena/scripts/imitation_learning/record_demos.py \
-    --device cuda --enable_cameras \
+    --device cpu --enable_cameras \
     --dataset_file /datasets/isaaclab_arena/g1_valve/g1_valve_session_$(date +%Y%m%d_%H%M%S).hdf5 \
     --num_demos 20 --num_success_steps 10 --disable_full_sim_buffer_reset \
     --kit_args="--/renderer/multiGpu/enabled=false --/renderer/activeGpu=0 --/persistent/xr/profile/ar/renderQuality=performance --/rtx/rendermode=RaytracedLighting --/rtx/post/tonemap/op=2" \
@@ -190,6 +190,13 @@ El HDF5 sale en `~/datasets/isaaclab_arena/g1_valve/`.
 
 Diferencias respecto al modo B, y por qué:
 
+- **`--device cpu`, no `cuda`.** Con física en GPU, XR y `--enable_cameras` a la vez, el entorno
+  muere al crearse con `CUDA error: an illegal memory access was encountered`, dentro de
+  `GpuArticulationView.cpp`. Reproducido y aislado el 2026-08-18: GPU+cámaras sin XR va bien,
+  GPU+XR sin cámaras va bien, los tres juntos **siempre** revientan a los 23 s. `GpuArticulationView`
+  solo existe con física en GPU, así que en CPU el camino ni se recorre. No cuesta FPS: los ~20 FPS
+  del casco vienen de `renderQuality=performance` y `rendermode=RaytracedLighting`, no del
+  dispositivo de física.
 - **`--enable_cameras`**. Aquí sí y además hace falta: es lo que escribe la cámara en el HDF5, y
   esa cámara *es* la entrada de la política. Lo que quede fuera del encuadre no existe para ella.
   En `teleop.py` es imposible (llama a `remove_camera_configs()` sin condición cuando hay XR y
@@ -258,6 +265,7 @@ que de verdad lo sujeta.
 | Conecta la señalización, nunca llega imagen | falta la regla UDP en ufw | ver §0 |
 | `VK_ERROR_OUT_OF_DEVICE_MEMORY` | multi-GPU en XR | `--kit_args` con `multiGpu=false` + `activeGpu=0` |
 | 1 FPS en las gafas | falta `renderQuality=performance` / sobra el monitor | ver §B |
+| `CUDA error: an illegal memory access` al crear el entorno | física en GPU + XR + cámaras | `--device cpu` |
 | La válvula no gira al agarrarla | `drive:angular:physics:damping` alto | está en `sim/assets/valve_rig_arena.usda` |
 | El robot gira al hacer fuerza | `ARENA_FIX_BASE=0` | ponlo a 1 |
 | "active XRSession already exists" | varias pestañas conectadas | deja una y relanza el teleop |

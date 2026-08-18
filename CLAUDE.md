@@ -259,6 +259,14 @@ Distilled from `~/TFM/TELEOP_G1_VALVE.md` and `~/TFM/ESTADO_TELEOP_XR.md`:
 - **`--enable_cameras` breaks `teleop.py`** — it drops the cameras whenever XR is active and the
   observation term hangs, so the env never builds. Cameras belong to `record_demos.py`, which is
   also what writes them into the HDF5.
+- **Record with `--device cpu`, not `cuda`.** GPU physics + XR + `--enable_cameras` together kill
+  the environment at creation with `CUDA error: an illegal memory access was encountered`, raised
+  inside `GpuArticulationView.cpp`, always ~23 s in. Bisected on 2026-08-18: GPU+cameras without
+  XR is fine, GPU+XR without cameras is fine, and it reproduces with the pelvis free as well as
+  pinned, so neither the cameras nor `fix_root_link` is the culprit on its own. `GpuArticulationView`
+  only exists with GPU physics, so CPU physics never walks that path. It costs no framerate — the
+  ~20 FPS in the headset come from `renderQuality=performance` and `rendermode=RaytracedLighting`,
+  not from the physics device.
 - **Pin the GPU via `--kit_args`** (`--/renderer/multiGpu/enabled=false --/renderer/activeGpu=0`).
   Without it XR dies with `VK_ERROR_OUT_OF_DEVICE_MEMORY`. **Never use `CUDA_VISIBLE_DEVICES`** —
   it leaves CUDA in a state that renders the WebRTC monitor black.
