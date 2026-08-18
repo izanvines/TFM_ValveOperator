@@ -399,9 +399,12 @@ Not yet done, in order:
 3. Freeze or drop the locomotion dims `[16:19]` from the action space. `ARENA_STATIC_BASE=1`
    freezes them at record time; whether they should be *dropped* from the 23-dim action layout
    before the GR00T conversion is still open.
-4. **Get the Arena work onto a branch.** It is still uncommitted in `~/TFM/IsaacLab-Arena` and one
-   `git checkout` erases it. `sim/` in this repo now holds a copy, so the material is no longer
-   one command from being lost — but the checkout itself is still unprotected.
+4. ~~Get the Arena work onto a branch.~~ **Done 2026-08-18.** `~/TFM/IsaacLab-Arena` is on branch
+   `tfm/g1-valve` (3 commits) and its `submodules/IsaacLab` on a branch of the same name (1
+   commit, recorded as the submodule pointer). Both working trees are clean. Local noise (etli
+   dumps, `.bak`, `.s3bak`, logs) is filtered through `.git/info/exclude`, which is local-only and
+   does not dirty the third-party repo. Neither branch is pushed anywhere; if either ever is, the
+   submodule must be pushed with it or the recorded hash will not resolve.
 5. The 400-demo session.
 6. In parallel: a separate venv with LeRobot for the ACT arm.
 
