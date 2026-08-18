@@ -220,6 +220,14 @@ Diferencias respecto al modo B, y por qué:
   ≈ `−0.5` (el signo va invertido por lado). Compruébalo con
   `sim/scripts/inspect_hdf5.py` en la primera demo: si esas dims salen constantes, has grabado
   empujones, no agarres.
+- **`--num_demos N` decide cuántas repeticiones.** Con `N > 1` el entorno resetea solo entre
+  demos (robot a la pose inicial, válvula a 0°) y sigue hasta llegar a N; con `0` va infinito
+  hasta Ctrl-C. **Cortar a la mitad no pierde lo ya grabado**: `export_in_record_pre_reset` hace
+  que cada demo con éxito se escriba en el reset siguiente, así que solo se pierde la que estabas
+  haciendo. Recomendación de la doc de NVIDIA: **20–50 por sesión**, porque la fatiga del
+  operador se nota en la calidad y la política copia justo eso.
+- **`--dataset_file` no puede apuntar a un fichero existente.** Un nombre por sesión
+  (`sesion_01.hdf5`, `sesion_02.hdf5`…). Cuenta ~82 MB por demo: 400 son unos 30 GB.
 - **Una sesión por fichero.** Se juntan luego con `merge_demos.py`, que valida que coincidan
   `format_version`, forma de la acción, claves de observación y geometría de cámara.
 

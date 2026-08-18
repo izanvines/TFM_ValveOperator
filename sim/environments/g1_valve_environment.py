@@ -51,7 +51,11 @@ if TYPE_CHECKING:
 #
 # Arena's Pose takes the quaternion as XYZW. jescobars' scene authored the same rotation
 # in USD's WXYZ order as (0.707, 0, 0, 0.707) -- do not paste that in directly.
-VALVE_SPAWN_XYZ = (0.55, 0.0, 1.00)  # -> wheel centre at (0.45, 0, 1.00)
+# Lowered from z=1.00 to z=0.80 on 2026-08-18: at 1.00 the wheel sat 0.26 m above the
+# pinned pelvis, roughly chest height, and came out halfway up the robot's head camera --
+# the frame that IS the policy's input. 0.80 puts it just above the wrists' resting height
+# (0.762), which is also the natural posture for a two-handed grip you have to pull against.
+VALVE_SPAWN_XYZ = (0.55, 0.0, 0.80)  # -> wheel centre at (0.45, 0, 0.80)
 VALVE_SPAWN_QUAT_XYZW = (0.0, 0.0, 0.70710678, 0.70710678)  # +90 deg about Z
 
 # SPAWN THE ROBOT ALREADY STANDING. This is the single most important line in the file
