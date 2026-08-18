@@ -8,7 +8,11 @@ venv/
 *.h5
 *.parquet
 *.mp4
+
+# Los USD de la valvula SI van al repo: es el asset que define la tarea (2 MB).
+# Cualquier otro .usdz que aparezca por aqui, no.
 *.usdz
+!sim/assets/valve_rig.usdz
 
 # Logs
 *.log

@@ -20,9 +20,16 @@ route that is already known to work over the more elegant one.
 ## Repository layout — read this first
 
 This directory (`~/Desktop/VLA-HumanoidG1`) is the **umbrella repo**: TFM docs, task-specific
-configs, evaluation and comparison analysis.
+configs, evaluation and comparison analysis. It is the repo that gets published.
 
-**The simulation code is NOT here.** It lives in `~/TFM/IsaacLab-Arena` — a checkout of
+- **[`LAUNCH.md`](LAUNCH.md)** — the verified launch commands: view the sim, teleoperate with the
+  PICO, record the dataset, convert to LeRobot, stop everything, and the failure table. Start here.
+- **[`sim/`](sim/README.md)** — the versioned copy of everything that defines the `g1_valve` task:
+  the environment file, the valve USD, the patches over upstream Arena, and the helper scripts.
+  `sim/sync.sh {diff,pull,push}` keeps it in step with the live checkout.
+
+**The simulation still RUNS from `~/TFM/IsaacLab-Arena`**, not from `sim/`. That is a checkout of
+`isaac-sim/IsaacLab-Arena` — a checkout of
 `isaac-sim/IsaacLab-Arena` on branch `release/0.2.1`, with local (uncommitted) changes. Its own
 `CLAUDE.md` is just `@AGENTS.md`; read `~/TFM/IsaacLab-Arena/AGENTS.md` for upstream conventions
 (pytest layout, pre-commit/black-120, DCO sign-off, `env.unwrapped` rule).
@@ -258,9 +265,51 @@ Distilled from `~/TFM/TELEOP_G1_VALVE.md` and `~/TFM/ESTADO_TELEOP_XR.md`:
 - **No native Isaac Sim window during XR over VNC** (`GLXBadFBConfig`). Go headless and stream.
 - **Locomotion is still active** in the teleop path (left joystick walks). Data collection for a
   static task needs it disabled.
-- The **third-person WebRTC monitor** (port 49200) is the highest-value debugging tool — comparing
-  it against the headset view isolated two separate bugs.
+- The **third-person WebRTC monitor** is the highest-value debugging tool — comparing it against
+  the headset view isolated two separate bugs. Ports below.
 - Chrome only for the WebXR client; one tab at a time.
+
+### Watching the sim over WebRTC — the two things that make it black
+
+Both were hit on 2026-08-18 and cost a full session. A black WebRTC stream is *always* one of
+these two, never the client.
+
+**1. No `--viz kit` means there is nothing to stream.** In this Isaac Lab build the viewport is a
+*visualizer* you have to ask for. `app_launcher.py` never writes `/isaaclab/has_gui` (it only
+writes `render/offscreen`, `render/active_viewport`, `xr/*`), so `SimulationContext.is_rendering`
+is False under `--livestream N` alone and `ManagerBasedRLEnv.step()` never calls `sim.render()`.
+With no Kit visualizer there is no viewport at all, and `omni.kit.livestream.app` — which streams
+*the application framebuffer* — transmits an empty buffer. Launch with **`--viz kit`** and, in a
+custom loop, call `sim.render()` explicitly each step. Verified: with `--viz kit`,
+`get_active_viewport()` returns a live `ViewportAPI` and `capture_viewport_to_file` writes a 388 KB
+PNG of the scene; without it, nothing. `/eval/arena_extras/capture_viewport.py` is that check —
+run it before blaming the network. Note RTX needs one warm-up frame: render 0 is black (max 0),
+render 1 has pixels (max 245).
+
+**2. The ports must exist in ufw, and `--livestream 1` hardcodes ones that do not.**
+`ufw` is active with `DEFAULT_INPUT_POLICY=DROP`, so a SYN to a port with no rule is dropped in
+silence — no error, no rejection, no log line. `--livestream 1` ("WebRTC public") pins
+**signalPort=49100/tcp** and **streamPort=47998/udp** in `app_launcher.py:662-666`; the rules on
+this host are for **49110/48010** and **49120/48020**, scoped to `172.22.41.0/24`. Either open
+49100+47998 or override the ports via `--kit_args` to ones already allowed — the launch scripts
+already do the latter:
+
+```
+--/exts/omni.kit.livestream.app/primaryStream/signalPort=49120
+--/exts/omni.kit.livestream.app/primaryStream/streamPort=48020
+--/exts/omni.kit.livestream.app/primaryStream/publicIp=172.22.41.51
+```
+
+Do not diagnose this from the workstation: a probe from a Docker bridge namespace
+(172.17.0.x → 172.22.41.51) reports the ports open even when the LAN path is dropped. That is a
+false positive; container-to-host traffic does not take the same chain. Test from the laptop.
+
+Signalling is TCP, **media is UDP**. An SSH tunnel forwards TCP only, so connecting the client to
+`127.0.0.1` through a tunnel negotiates the session and then shows black forever. Point the client
+at `172.22.41.51` directly.
+
+`/eval/arena_extras/stream_valve.py` is the standalone viewer: builds `g1_valve`, holds the robot
+in a stable standing pose, frames the viewport on robot + valve, and steps until killed.
 
 ## Uncommitted local patches — do not lose these
 
@@ -294,32 +343,67 @@ it onto a branch is worth doing early.
 - **PICO 4 Ultra**, real headset, already proven to connect.
 - Gaussian-Splatting backdrop **out of scope**; the diáfano scene is the deliverable.
 - **Only the valve asset is taken from jescobars' (Javi's) work** — see "Do not swap the robot".
-- Robot **stays standing under the AGILE policy** — this mirrors the real deployment. Locomotion
-  commands are to be frozen/removed from the action space, not merely left untouched (see above).
+- Locomotion commands are to be frozen/removed from the action space, not merely left untouched
+  (see "Action space" above). `ARENA_STATIC_BASE=1` does the freezing.
 
-## Current state (2026-08-17)
+### Reversed on 2026-08-18: the pelvis is now pinned
 
-**Zero demonstrations recorded.** The only HDF5 in `~/datasets/isaaclab_arena/g1_valve/` is 96
-bytes — an empty session file from 2026-08-05.
+The earlier decision was that the robot **stays standing under AGILE**, on the argument that it
+mirrors the real deployment. Teleoperation killed it. Turning a hand-wheel feeds a reaction torque
+back through the arms, and with a free root the balance controller absorbs it the only way it can:
+by rotating the whole robot. The operator turns the wheel and the robot swings round with it.
 
-The environment itself is verified working with the CAD valve. Confirmed in-sim: the
-articulation loads with bodies `['valve_model_stl_001', 'mesh_50_AL_250_B7_8_A_stl']` and
-joint `['RevoluteJoint']` at limits [0°, 360°]; both material bindings resolve, so the
-wheel keeps its staticFriction 1.2 / dynamicFriction 1.0; the AGILE ONNX policy loads; the
-action manager reports 23 dims; both recorder terms register; and the reset is deterministic
-to a millimetre with both wrists 0.44 m from the wheel.
+That is fatal for the dataset, not merely ugly. Every demonstration would encode "the base drifts
+while I turn" as part of the skill; the wheel would leave arm reach mid-episode; and the wrist
+poses the policy regresses on are expressed in the *pelvis frame*, so a pelvis that moves makes
+identical hand motions look like different actions.
+
+`g1_valve_environment.py` now sets `fix_root_link=True` on the robot spawn, gated by
+**`ARENA_FIX_BASE`** (default on). Measured over 3 resets afterwards: pelvis drift
+`(0.000, 0.000, 0.000)` m, spread `0.000` m — against up to 0.30 m before. AGILE keeps running and
+keeps the legs standing; it simply no longer has a pelvis it can move. **The action space stays at
+23 dims**, so the 43-DoF joint space, the GR00T conversion and the recorder terms are all
+unaffected.
+
+`ARENA_STATIC_BASE` and `ARENA_FIX_BASE` are not the same thing and neither replaces the other:
+the first stops the operator walking the robot away, the second stops physics moving it.
+
+## Current state (2026-08-18)
+
+**Zero demonstrations recorded** — but teleoperation now works end to end and the task is
+actually performable, which was not true yesterday.
+
+Verified in the headset on 2026-08-18:
+
+- The PICO 4 Ultra connects (CloudXR + the WSS proxy on **48322**, the only port the headset
+  talks to — `isaacteleop/cloudxr/wss.py:244-245`).
+- ~20 FPS in stereo, controllable. It was 1 FPS until
+  `--/persistent/xr/profile/ar/renderQuality=performance` and
+  `--/rtx/rendermode=RaytracedLighting` went in, and until the third-person monitor came out —
+  it costs a whole render product.
+- **The operator can turn the valve.** The rig shipped with
+  `drive:angular:physics:damping = 100`, `stiffness = 0`, `targetVelocity = 0`: a viscous brake
+  needing ~1000 N·m for 10 °/s, against the couple of N·m a G1 hand delivers at the 0.10 m
+  wheel radius. `valve_rig_arena.usda` lowers it to `0.01`. That value is *not* verified
+  synthetically — `test_valve_torque.py` reads 0.00° even at 50 N·m because the external-wrench
+  path is a no-op on this backend — only by teleoperation. Raise it toward 0.05–0.1 for a
+  heavier, more realistic valve.
+- The pelvis is pinned (see the reversed decision above).
 
 Not yet done, in order:
 
 1. **Record one demo end to end** and confirm the HDF5 holds an episode with camera frames.
-   Everything above is necessary but not sufficient — recording has never once succeeded here.
+   Recording has never once succeeded here — `LAUNCH.md` §C has the command.
 2. Convert that single demo to LeRobot (copy `g1_static_apple_config.yaml`) before recording
    in bulk.
-3. Freeze or drop the locomotion dims `[16:19]` from the action space.
-4. **Get the valve work onto a branch** — it is all uncommitted and one `git checkout` erases it.
+3. Freeze or drop the locomotion dims `[16:19]` from the action space. `ARENA_STATIC_BASE=1`
+   freezes them at record time; whether they should be *dropped* from the 23-dim action layout
+   before the GR00T conversion is still open.
+4. **Get the Arena work onto a branch.** It is still uncommitted in `~/TFM/IsaacLab-Arena` and one
+   `git checkout` erases it. `sim/` in this repo now holds a copy, so the material is no longer
+   one command from being lost — but the checkout itself is still unprotected.
 5. The 400-demo session.
 6. In parallel: a separate venv with LeRobot for the ACT arm.
 
-Untested and worth watching at step 1: the rig drives its wheel with `damping=100,
-maxForce=1000, stiffness=0` — a deliberately heavy valve. Whether the G1 can actually turn
-it against that damping has not been demonstrated, only that it can reach it.
+Open, lower priority: the valve floats with no standpipe down to the floor (looks poor in thesis
+figures); the `ViewerCfg` third-person framing is not great for figures.

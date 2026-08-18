@@ -1,0 +1,20 @@
+diff --git a/isaaclab_arena_environments/cli.py b/isaaclab_arena_environments/cli.py
+index 6ea6170d8..5a6be2dc8 100644
+--- a/isaaclab_arena_environments/cli.py
++++ b/isaaclab_arena_environments/cli.py
+@@ -19,6 +19,7 @@ from isaaclab_arena_environments.galileo_g1_locomanip_pick_and_place_environment
+ from isaaclab_arena_environments.galileo_g1_static_pick_and_place_environment import (
+     GalileoG1StaticPickAndPlaceEnvironment,
+ )
++from isaaclab_arena_environments.g1_valve_environment import G1ValveEnvironment
+ from isaaclab_arena_environments.galileo_pick_and_place_environment import GalileoPickAndPlaceEnvironment
+ from isaaclab_arena_environments.gr1_open_microwave_environment import Gr1OpenMicrowaveEnvironment
+ from isaaclab_arena_environments.gr1_put_and_close_door_environment import GR1PutAndCloseDoorEnvironment
+@@ -46,6 +47,7 @@ ExampleEnvironments = {
+     PickAndPlaceMapleTableEnvironment.name: PickAndPlaceMapleTableEnvironment,
+     GalileoG1LocomanipPickAndPlaceEnvironment.name: GalileoG1LocomanipPickAndPlaceEnvironment,
+     GalileoG1StaticPickAndPlaceEnvironment.name: GalileoG1StaticPickAndPlaceEnvironment,
++    G1ValveEnvironment.name: G1ValveEnvironment,
+     PressButtonEnvironment.name: PressButtonEnvironment,
+     CubeGoalPoseEnvironment.name: CubeGoalPoseEnvironment,
+     DexsuiteLiftEnvironment.name: DexsuiteLiftEnvironment,

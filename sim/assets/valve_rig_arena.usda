@@ -1,0 +1,126 @@
+#usda 1.0
+(
+    doc = """Arena-facing wrapper over jescobars' `valve_rig.usdz`. Two jobs.
+
+    1. RE-SCOPE THE TRAVEL.
+    The source rig authors the hand-wheel's revolute travel as 539.7 deg -> 2879.8 deg,
+    i.e. 6.5 full turns, faithful to a real multi-turn gate valve. Arena's `Openable`
+    affordance normalises openness linearly over the joint's *limits*
+    (`isaaclab_arena/utils/joint_utils.py:53-63`) and `OpenDoorTask` calls success at
+    openness > 0.5, so against the raw limits a demonstration would have to complete 3.25
+    revolutions inside one episode -- unreachable by teleoperation, and every demo would
+    end by timeout and never be written to the HDF5.
+    This layer overrides the limits so the modelled travel is exactly one turn, 0 -> 360
+    deg. Openness then maps 0 -> 1 over that single turn and `OPENNESS_SUCCESS_THRESHOLD
+    = 0.5` keeps its intended meaning of half a revolution -- the same span the procedural
+    `valve_handwheel_v1.usda` modelled, so nothing downstream changes. To retune how much
+    travel counts as fully open, edit `physics:upperLimit`.
+
+    The range is rebased to zero rather than kept at the rig's authored 539.7 deg rest
+    angle because Isaac Lab spawns an articulation with `init_state.joint_pos = {'.*':
+    0.0}` and validates it against the limits; leaving the range at 539.7 -> 899.7 aborts
+    startup with "The following joints have default positions out of the limits". Rebasing
+    is sound here: a hand-wheel is a body of revolution about this very axis, so shifting
+    its zero only changes the rotational phase the spokes rest at, not the geometry, the
+    physics or the task.
+
+    Scoping note for the thesis: the imitation-learning task is the manipulation skill
+    (approach, grasp a spoke, rotate), not the full multi-turn actuation of a real gate
+    valve. Bounding the modelled travel keeps openness a meaningful normalised measure of
+    progress within an 8-20 s episode.
+
+    2. KEEP THE MATERIALS ATTACHED.
+    The rig's meshes bind to `/World/Looks/OmniPBR` and `/World/PhysicsMaterial`, which sit
+    outside `</World/Valve>`. Referencing the valve subtree alone drops both bindings
+    silently ("refers to a path outside the scope of the reference ... Ignoring"), and
+    losing the physics material costs staticFriction 1.2 / dynamicFriction 1.0 -- the
+    friction the G1's fingers need to hold a spoke without slipping. Both materials are
+    therefore pulled in as children of the asset root and rebound here.
+
+    3. UNBRAKE THE WHEEL.
+    The source rig drives the hand-wheel with `damping = 100`, `stiffness = 0`,
+    `targetVelocity = 0` and `maxForce = 1000`. A damping-only drive with zero target
+    velocity is a viscous brake: the torque opposing rotation is `damping * angular_speed`,
+    so turning the wheel at even 10 deg/s demands ~1000 N*m -- exactly the drive's force
+    ceiling. The G1 grips a spoke at a radius of 0.10 m and its arm actuators cap out around
+    25 N*m at the shoulder, so the hand delivers a couple of N*m at best. Measured in the
+    headset on 2026-08-18: the wheel does not move at all under teleoperation.
+
+Damping is lowered to 0.01. USD authors angular drive gains per degree while Isaac Lab
+    reports them per radian, so this reads back as `joint_damping = 0.573` in sim (the
+    original 100 read back as 5730). ~1 N*m then turns the wheel at ~100 deg/s: half a turn,
+    which is the success threshold, takes a couple of seconds. `stiffness` stays 0 (no spring
+    back to a rest angle) and `physxJoint:jointFriction = 0.1` is left alone -- a small static
+    threshold that gives the wheel a "sticky" break-away without blocking it.
+
+    This value was NOT verified synthetically. `test_valve_torque.py` applies a known torque
+    to the wheel body with `set_external_force_and_torque` and reads back exactly 0.00 deg
+    even at 50 N*m, i.e. the external-wrench path is a no-op on this backend (same family as
+    the `PhysxManager has no attribute '_get_backend_utils'` warning at startup). The only
+    valid test is teleoperation. The value therefore errs on the easy side: raise it toward
+    0.05-0.1 once the robot can turn the wheel, if a heavier valve is wanted for realism.
+
+    Deliberately NOT inherited from the source stage: `/Environment/defaultLight` (would
+    fight Arena's dome light), `/Render/*` and `/Viewport_Measure` (authoring leftovers).
+
+    Structure mirrors `valve_handwheel_v1.usda`: defaultPrim is the articulation root
+    itself, which is what Arena's asset registry spawns. Geometry and physics are
+    referenced, never copied.
+    """
+    defaultPrim = "Valve"
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Valve" (
+    prepend references = @./valve_rig.usdz@</World/Valve>
+)
+{
+    def Scope "Looks"
+    {
+        def Material "OmniPBR" (
+            prepend references = @./valve_rig.usdz@</World/Looks/OmniPBR>
+        )
+        {
+        }
+    }
+
+    def Material "PhysicsMaterial" (
+        prepend references = @./valve_rig.usdz@</World/PhysicsMaterial>
+    )
+    {
+    }
+
+    over "RevoluteJoint"
+    {
+        float physics:lowerLimit = 0
+        float physics:upperLimit = 360
+
+        # 3. LET THE ROBOT ACTUALLY TURN IT. See the third block of the doc above.
+        float drive:angular:physics:damping = 0.01
+    }
+
+    over "handwheel"
+    {
+        over "node_50_AL_250_B7_8_A"
+        {
+            over "mesh_50_AL_250_B7_8_A_stl"
+            {
+                rel material:binding = </Valve/Looks/OmniPBR>
+                rel material:binding:physics = </Valve/PhysicsMaterial>
+            }
+        }
+    }
+
+    over "valve_body"
+    {
+        over "valve_model"
+        {
+            over "valve_model_stl_001"
+            {
+                rel material:binding = </Valve/Looks/OmniPBR>
+            }
+        }
+    }
+}
