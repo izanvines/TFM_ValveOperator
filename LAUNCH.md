@@ -214,6 +214,12 @@ Diferencias respecto al modo B, y por qué:
   agota, la demo muere por timeout y NO se escribe** — mejor pasarse que quedarse corto.
 - **`--num_success_steps 10`**: hay que mantener el éxito 10 pasos para que cuente, así no se
   valida un roce.
+- **Agarra el volante con el gatillo, y solo con el gatillo.** Las dims `[0]`/`[1]` valen
+  `0.5·trigger − 0.5·squeeze`, así que apretar gatillo y grip a la vez da 0 — y un 0 significa
+  *mano abierta* para el entorno. Cerrando bien, la izquierda registra ≈ `+0.5` y la derecha
+  ≈ `−0.5` (el signo va invertido por lado). Compruébalo con
+  `sim/scripts/inspect_hdf5.py` en la primera demo: si esas dims salen constantes, has grabado
+  empujones, no agarres.
 - **Una sesión por fichero.** Se juntan luego con `merge_demos.py`, que valida que coincidan
   `format_version`, forma de la acción, claves de observación y geometría de cámara.
 

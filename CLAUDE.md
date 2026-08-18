@@ -203,6 +203,32 @@ From `isaaclab_arena_g1/g1_env/mdp/actions/g1_decoupled_wbc_pink_action.py:226-2
 [20:23]  torso_orientation_rpy_cmd   3
 ```
 
+### Dims [0] and [1] are not "hand open/closed"
+
+They carry `thumb_rotation` from the TriHand retargeter
+(`isaacteleop/retargeters/G1/trihand_motion_controller.py:176`):
+
+```python
+thumb_rotation = 0.5 * trigger - 0.5 * squeeze
+if not self._is_left:
+    thumb_rotation = -thumb_rotation
+```
+
+Three consequences, all of which bite silently:
+
+- **Trigger and squeeze cancel.** Pressing both fully gives 0, and the environment reads
+  `if hand_state == 0` as *open*
+  (`g1_wbc_upperbody_controller.py:256`). Squeezing harder can open the hand. **Record with the
+  trigger only.**
+- **The right hand's sign is inverted.** The same closing gesture records ≈ `+0.5` on the left
+  and ≈ `-0.5` on the right. Not a bug to fix, but the policy sees an asymmetry.
+- **The environment binarises** (`== 0` vs anything else) while the policy regresses a
+  continuous value, so 0.02 of noise closes the hand. Fragile by design; upstream's, not ours.
+
+The first recorded demo has both dims constant 0 — the wheel was pushed with an open hand.
+**The decision (2026-08-18) is to grasp**, so every demo must show the trigger being used, and
+`sim/scripts/inspect_hdf5.py` must show these dims non-constant before the bulk session starts.
+
 **Standing under AGILE is not the same as having the nav channel in the action space.** The design
 keeps AGILE balancing the legs (that is the realism argument and it stays), but if the operator
 simply never touches the joystick, dims `[16:19]` are **constant zero across all 400 demos**. Two
@@ -436,7 +462,9 @@ a constant break-away torque, which is how a real gate valve behaves) rather tha
 
 Not yet done, in order:
 
-1. Decide the grasp-vs-push question above, then **record the 400-demo session**.
+1. **Record one grasping demo and verify dims [0]/[1] are no longer constant**, then the
+   400-demo session. Grasping is the decision (2026-08-18): more realistic for an Oil & Gas
+   thesis than pushing the wheel with an open hand.
 2. Freeze or drop the locomotion dims `[16:19]` from the 23-dim action layout before the GR00T
    conversion.
 3. A separate venv with LeRobot for the ACT arm.
