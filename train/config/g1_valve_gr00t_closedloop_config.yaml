@@ -16,7 +16,7 @@
 #
 # Las rutas relativas de abajo se resuelven contra el CWD, asi que hay que lanzar el servidor
 # desde la raiz de ~/TFM/IsaacLab-Arena.
-model_path: /home/ivines/models/isaaclab_arena/g1_valve/gr00t_n17_valve_1k/checkpoint-1000
+model_path: /home/ivines/models/isaaclab_arena/g1_valve/gr00t_n17_valve_10k/checkpoint-10000
 
 # Tiene que coincidir con `tasks.jsonl` del dataset, no con el `--task_description` por defecto del
 # entorno ("Reach out and turn the wheel to open the valve."). GR00T esta condicionado por lenguaje
