@@ -39,6 +39,7 @@ NUEVOS=(
   "assets/valve_rig.usdz:isaaclab_arena/assets/usd/valve_rig.usdz"
   "assets/valve_rig_PROVENANCE.md:isaaclab_arena/assets/usd/valve_rig_PROVENANCE.md"
   "config/g1_valve_config.yaml:isaaclab_arena_gr00t/lerobot/config/g1_valve_config.yaml"
+  "../train/config/g1_valve_gr00t_closedloop_config.yaml:isaaclab_arena_gr00t/policy/config/g1_valve_gr00t_closedloop_config.yaml"
 )
 
 # ficheros de upstream que llevan parche local
@@ -52,8 +53,13 @@ PARCHEADOS=(
 )
 
 SCRIPTS=(stream_valve.py measure_valve_rig.py capture_viewport.py test_valve_torque.py
-         inspect_valve_physics.py inspect_hdf5.py hold_pose_policy.py
+         inspect_valve_physics.py inspect_hdf5.py audit_session.py hold_pose_policy.py
          record_robotcam_video.py launch_record_valve.sh)
+
+# Scripts de train/ que tienen que estar dentro del contenedor (corren con /isaac-sim/python.sh
+# porque son los unicos sitios donde coinciden h5py, pyarrow y ffprobe). Los servidores de
+# politica NO van aqui: corren en el host, desde el repo, via PYTHONPATH.
+TRAIN_SCRIPTS=(verify_lerobot_dataset.py)
 
 accion="${1:-diff}"
 
@@ -72,6 +78,9 @@ case "$accion" in
     for s in "${SCRIPTS[@]}"; do
       [ -f "$EXTRAS/$s" ] && cp -v "$EXTRAS/$s" "$REPO/scripts/"
     done
+    for s in "${TRAIN_SCRIPTS[@]}"; do
+      [ -f "$EXTRAS/$s" ] && cp -v "$EXTRAS/$s" "$REPO/../train/scripts/"
+    done
     echo "Listo. Revisa 'git status' en el repo."
     ;;
 
@@ -84,6 +93,9 @@ case "$accion" in
     mkdir -p "$EXTRAS"
     for s in "${SCRIPTS[@]}"; do
       [ -f "$REPO/scripts/$s" ] && cp -v "$REPO/scripts/$s" "$EXTRAS/"
+    done
+    for s in "${TRAIN_SCRIPTS[@]}"; do
+      [ -f "$REPO/../train/scripts/$s" ] && cp -v "$REPO/../train/scripts/$s" "$EXTRAS/"
     done
     echo
     echo "Ficheros nuevos copiados. Los PARCHES no se aplican solos -- aplicalos a mano"
@@ -102,6 +114,11 @@ case "$accion" in
     for s in "${SCRIPTS[@]}"; do
       if [ -f "$EXTRAS/$s" ] && ! diff -q "$REPO/scripts/$s" "$EXTRAS/$s" >/dev/null 2>&1; then
         echo "DIFIERE: scripts/$s"
+      fi
+    done
+    for s in "${TRAIN_SCRIPTS[@]}"; do
+      if [ -f "$EXTRAS/$s" ] && ! diff -q "$REPO/../train/scripts/$s" "$EXTRAS/$s" >/dev/null 2>&1; then
+        echo "DIFIERE: ../train/scripts/$s"
       fi
     done
     echo "(sin lineas 'DIFIERE' = repo y checkout estan iguales)"
