@@ -1,0 +1,49 @@
+# Copyright (c) 2026. TFM Universidad de Leon -- G1 abriendo valvulas de volante.
+# SPDX-License-Identifier: Apache-2.0
+
+# Configuracion del servidor `Gr00tRemoteServerSidePolicy` para la tarea g1_valve.
+# Copia de `g1_static_apple_gr00t_closedloop_config.yaml`: mismo embodiment G1, mismo espacio de
+# 43 DoF, misma camara. Solo cambian el checkpoint y la instruccion.
+#
+# El cliente es `isaaclab_arena.policy.action_chunking_client.ActionChunkingClientSidePolicy`,
+# que corre DENTRO del contenedor y no necesita YAML: aprende action_dim, observation_keys y
+# horizonte del saludo inicial del servidor.
+#
+# OJO CON model_path: aqui es una ruta de HOST, no `/models/...`. El servidor no corre dentro del
+# contenedor -- el submodulo Isaac-GR00T que Arena tiene fijado solo implementa `Gr00tN1d6` y sus
+# dependencias no estan instaladas en el interprete de Isaac Sim (`import tyro` falla). El servidor
+# vive en ~/TFM/isaac-gr00t-standalone/.venv, que si trae N1.7.
+#
+# Las rutas relativas de abajo se resuelven contra el CWD, asi que hay que lanzar el servidor
+# desde la raiz de ~/TFM/IsaacLab-Arena.
+model_path: /home/ivines/models/isaaclab_arena/g1_valve/gr00t_n17_valve_1k/checkpoint-1000
+
+# Tiene que coincidir con `tasks.jsonl` del dataset, no con el `--task_description` por defecto del
+# entorno ("Reach out and turn the wheel to open the valve."). GR00T esta condicionado por lenguaje
+# y se afino con esta cadena; en el cliente hay que pasar --language_instruction con la misma.
+language_instruction: "turn the handwheel to open the valve"
+
+# 40 es el horizonte que lleva cocido el checkpoint de partida (gn1x_tuned_static_apple,
+# `action_horizon: 40`) y el que declara g1_sim_wbc_data_gr00t_n_1_7_config.py con
+# delta_indices=list(range(40)). El fichero hermano g1_sim_wbc_data_config.py usa 50: no mezclar,
+# `register_modality_config` ademas peta si se importan los dos en el mismo proceso.
+action_horizon: 40
+
+embodiment_tag: NEW_EMBODIMENT
+
+# Inerte en esta ruta: solo lo consume replay_lerobot_action_policy.py. decord no esta instalado
+# en el venv y no hace falta.
+video_backend: decord
+modality_config_path: isaaclab_arena_gr00t/embodiments/g1/g1_sim_wbc_data_gr00t_n_1_7_config.py
+
+policy_joints_config_path: isaaclab_arena_gr00t/embodiments/g1/gr00t_43dof_joint_space.yaml
+action_joints_config_path: isaaclab_arena_gr00t/embodiments/g1/43dof_joint_space.yaml
+state_joints_config_path: isaaclab_arena_gr00t/embodiments/g1/43dof_joint_space.yaml
+
+action_chunk_length: 40
+pov_cam_name_sim: "robot_head_cam_rgb"
+
+# g1_locomanipulation => accion de 50 dims [43 juntas | 3 nav | 1 altura | 3 torso], que es lo que
+# espera el embodiment de evaluacion `g1_wbc_agile_joint`. El de grabacion (`g1_wbc_agile_pink`)
+# son 23 dims y NO sirve aqui: no hay inversa 43->23 en el repositorio.
+task_mode_name: g1_locomanipulation
