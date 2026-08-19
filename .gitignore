@@ -9,6 +9,10 @@ venv/
 *.parquet
 *.mp4
 
+# ...salvo los videos de demostracion de las politicas: son el resultado del TFM y pesan
+# ~1 MB. Cualquier otro .mp4 (episodios sueltos, salidas de evaluacion) se queda fuera.
+!videos/*.mp4
+
 # Los USD de la valvula SI van al repo: es el asset que define la tarea (2 MB).
 # Cualquier otro .usdz que aparezca por aqui, no.
 *.usdz

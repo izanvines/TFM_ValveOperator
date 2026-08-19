@@ -219,6 +219,30 @@ class G1ValveEnvironment(ExampleEnvironmentBase):
             task_description=args_cli.task_description,
         )
 
+        # --- Encuadre de la camara de tercera persona -----------------------------------
+        # `RotateRevoluteJointTask.get_viewer_cfg` mira a la valvula desde
+        # `offset = (-1.3, -1.3, 1.3)`. Sirve para depurar, pero para las figuras y los videos de
+        # la memoria deja al robot pequeno, descentrado y visto desde arriba: el volante -- que es
+        # lo unico que importa -- ocupa unos pocos pixeles.
+        #
+        # El encuadre bueno es lateral y a la altura del pecho, mirando al punto medio entre la
+        # pelvis del robot y el volante, para que se vean a la vez las manos y lo que hacen. Se
+        # sobreescribe aqui en vez de tocar la clase de upstream porque es una preferencia de este
+        # TFM, no un defecto de Arena. `ARENA_VIEW_OFFSET="x,y,z"` lo cambia sin editar codigo.
+        from isaaclab.envs import ViewerCfg as _ViewerCfg
+
+        _off = _os.environ.get("ARENA_VIEW_OFFSET", "0.35,-1.45,0.30")
+        _dx, _dy, _dz = (float(v) for v in _off.split(","))
+        _mira = (
+            (ROBOT_SPAWN_XYZ[0] + VALVE_SPAWN_XYZ[0]) / 2.0,
+            (ROBOT_SPAWN_XYZ[1] + VALVE_SPAWN_XYZ[1]) / 2.0,
+            VALVE_SPAWN_XYZ[2] - 0.05,
+        )
+        _ojo = (_mira[0] + _dx, _mira[1] + _dy, _mira[2] + _dz)
+        _vista = _ViewerCfg(eye=_ojo, lookat=_mira, origin_type="env")
+        task.get_viewer_cfg = lambda _v=_vista: _v
+        print(f"[arena] camara de tercera persona: ojo={_ojo} mira={_mira}")
+
         # Optional photorealistic backdrop (Gaussian Splatting / NuRec) for sim2real.
         scene_assets = [ground, light, valve]
         if getattr(args_cli, "background", "none") not in (None, "none"):
