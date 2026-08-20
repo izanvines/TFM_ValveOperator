@@ -69,11 +69,39 @@ case "$accion" in
       cp -v "$ARENA/${par#*:}" "$REPO/${par%%:*}"
     done
     ( cd "$ARENA"
+      # Los parches se generan contra la BASE DE UPSTREAM, no contra el arbol de trabajo.
+      #
+      # Antes esto era `git diff -- "$f"`, que solo ve cambios SIN COMMITEAR. En cuanto el trabajo
+      # se fue committeando en la rama tfm/g1-valve, los parches se vaciaron en silencio: el
+      # 2026-08-20 siete de los ocho tenian 0 lineas, y el README seguia diciendo que ahi estaba el
+      # registro de lo que cambia respecto a upstream. Un clon del repo no habria traido nada.
+      BASE="${ARENA_BASE:-$(git merge-base HEAD origin/release/0.2.1 2>/dev/null)}"
+      if [ -z "$BASE" ]; then
+        echo "AVISO: no encuentro la base de upstream; fijala con ARENA_BASE=<ref>" >&2
+        BASE=HEAD
+      fi
+      echo "parches contra $(git log --oneline -1 "$BASE" 2>/dev/null || echo "$BASE")"
       for par in "${PARCHEADOS[@]}"; do
         f="${par%%:*}"; nombre="${par#*:}"
-        git diff -- "$f" > "$REPO/patches/$nombre"
+        git diff "$BASE"..HEAD -- "$f" > "$REPO/patches/$nombre"
+        # Un parche vacio casi siempre significa que la ruta cambio de sitio, no que no haya
+        # cambios: avisar en vez de dejarlo pasar.
+        [ -s "$REPO/patches/$nombre" ] || echo "  AVISO: $nombre sale VACIO ($f)" >&2
       done
-      git -C submodules/IsaacLab diff > "$REPO/patches/isaaclab_submodule.patch" || true
+      # Para el submodulo la referencia NO es una rama remota suya -- no tiene ninguna con la que
+      # comparar, y `merge-base` contra origin/main devolvia un ancestro remotisimo que producia un
+      # parche de 220.000 lineas. La referencia buena es el commit que UPSTREAM fija para el
+      # submodulo, que se lee del propio superproyecto.
+      SUB_BASE="${ISAACLAB_BASE:-}"
+      if [ -z "$SUB_BASE" ]; then
+        SUB_BASE=$(git ls-tree "$BASE" submodules/IsaacLab | awk "{print \$3}")
+      fi
+      if [ -n "$SUB_BASE" ]; then
+        git -C submodules/IsaacLab diff "$SUB_BASE"..HEAD > "$REPO/patches/isaaclab_submodule.patch" || true
+      fi
+      # El submodulo tambien puede llevar cambios sin commitear; se anaden al final.
+      git -C submodules/IsaacLab diff >> "$REPO/patches/isaaclab_submodule.patch" || true
+      [ -s "$REPO/patches/isaaclab_submodule.patch" ] || echo "  AVISO: isaaclab_submodule.patch sale VACIO" >&2
     )
     for s in "${SCRIPTS[@]}"; do
       [ -f "$EXTRAS/$s" ] && cp -v "$EXTRAS/$s" "$REPO/scripts/"

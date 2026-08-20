@@ -1,0 +1,139 @@
+diff --git a/apps/isaaclab.python.headless.kit b/apps/isaaclab.python.headless.kit
+index 1d28f7b901..c20b97a119 100644
+--- a/apps/isaaclab.python.headless.kit
++++ b/apps/isaaclab.python.headless.kit
+@@ -216,5 +216,5 @@ enabled=true # Enable this for DLSS
+ # note: this is done to ensure prior versions of Isaac Sim still use the latest assets
+ [settings]
+ persistent.isaac.asset_root.default = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
+-persistent.isaac.asset_root.cloud = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
++persistent.isaac.asset_root.cloud = "/datasets/isaac_assets/Assets/Isaac/6.0"
+ persistent.isaac.asset_root.nvidia = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
+diff --git a/apps/isaaclab.python.headless.rendering.kit b/apps/isaaclab.python.headless.rendering.kit
+index 12229aca0e..f84372ff3f 100644
+--- a/apps/isaaclab.python.headless.rendering.kit
++++ b/apps/isaaclab.python.headless.rendering.kit
+@@ -160,5 +160,5 @@ UJITSO.enabled = true
+ # note: this is done to ensure prior versions of Isaac Sim still use the latest assets
+ [settings]
+ persistent.isaac.asset_root.default = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
+-persistent.isaac.asset_root.cloud = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
++persistent.isaac.asset_root.cloud = "/datasets/isaac_assets/Assets/Isaac/6.0"
+ persistent.isaac.asset_root.nvidia = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
+diff --git a/apps/isaaclab.python.kit b/apps/isaaclab.python.kit
+index cc54d43a4d..7ff0bcb8a9 100644
+--- a/apps/isaaclab.python.kit
++++ b/apps/isaaclab.python.kit
+@@ -307,5 +307,5 @@ fabricUseGPUInterop = true
+ # note: this is done to ensure prior versions of Isaac Sim still use the latest assets
+ [settings]
+ persistent.isaac.asset_root.default = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
+-persistent.isaac.asset_root.cloud = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
++persistent.isaac.asset_root.cloud = "/datasets/isaac_assets/Assets/Isaac/6.0"
+ persistent.isaac.asset_root.nvidia = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
+diff --git a/apps/isaaclab.python.rendering.kit b/apps/isaaclab.python.rendering.kit
+index ad58b15918..93f1be1581 100644
+--- a/apps/isaaclab.python.rendering.kit
++++ b/apps/isaaclab.python.rendering.kit
+@@ -146,5 +146,5 @@ UJITSO.enabled = true
+ # note: this is done to ensure prior versions of Isaac Sim still use the latest assets
+ [settings]
+ persistent.isaac.asset_root.default = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
+-persistent.isaac.asset_root.cloud = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
++persistent.isaac.asset_root.cloud = "/datasets/isaac_assets/Assets/Isaac/6.0"
+ persistent.isaac.asset_root.nvidia = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
+diff --git a/apps/isaaclab.python.xr.openxr.headless.kit b/apps/isaaclab.python.xr.openxr.headless.kit
+index 6bf1bb7c43..3b367b5c20 100644
+--- a/apps/isaaclab.python.xr.openxr.headless.kit
++++ b/apps/isaaclab.python.xr.openxr.headless.kit
+@@ -73,5 +73,5 @@ UJITSO.enabled = true
+ 
+ [settings]
+ persistent.isaac.asset_root.default = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
+-persistent.isaac.asset_root.cloud = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
++persistent.isaac.asset_root.cloud = "/datasets/isaac_assets/Assets/Isaac/6.0"
+ persistent.isaac.asset_root.nvidia = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
+diff --git a/apps/isaaclab.python.xr.openxr.kit b/apps/isaaclab.python.xr.openxr.kit
+index 3b730f0eab..2db0bb5362 100644
+--- a/apps/isaaclab.python.xr.openxr.kit
++++ b/apps/isaaclab.python.xr.openxr.kit
+@@ -100,5 +100,5 @@ UJITSO.enabled = true
+ # note: this is done to ensure prior versions of Isaac Sim still use the latest assets
+ [settings]
+ persistent.isaac.asset_root.default = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
+-persistent.isaac.asset_root.cloud = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
++persistent.isaac.asset_root.cloud = "/datasets/isaac_assets/Assets/Isaac/6.0"
+ persistent.isaac.asset_root.nvidia = "https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/6.0"
+diff --git a/source/isaaclab/isaaclab/envs/manager_based_env.py b/source/isaaclab/isaaclab/envs/manager_based_env.py
+index 996e88216e..e7ed3e014f 100644
+--- a/source/isaaclab/isaaclab/envs/manager_based_env.py
++++ b/source/isaaclab/isaaclab/envs/manager_based_env.py
+@@ -195,6 +195,36 @@ class ManagerBasedEnv:
+             # this shouldn't cause an issue since later on, users do a reset over all the environments
+             # so the lazy buffers would be reset.
+             self.scene.update(dt=self.physics_dt)
++
++            # LOCAL PATCH (2026-08-18): pump a few renders before the managers are built.
++            #
++            # The comment above says the scene update is "needed for the observation manager
++            # to get valid tensors for initialization", but `scene.update()` never renders.
++            # An RTX sensor has no frame until something renders, so the first thing
++            # `ObservationManager._prepare_terms` does with an `image` term is ask a camera
++            # for data that does not exist yet.
++            #
++            # Without XR that resolves itself. With XR active it does not: the tiled camera
++            # blocks forever in `isaac_rtx_renderer.render()` -> `wp.launch` (with GPU physics
++            # the same situation surfaces as `CUDA illegal memory access` in
++            # `GpuArticulationView`), and the non-tiled camera returns an empty buffer, so the
++            # observation term is built with shape (0,) and no image ever reaches the dataset.
++            #
++            # Scenes that load a large background USD happen to work, which is what made this
++            # look like a scene-content problem: the extra load time lets the renderer produce
++            # a frame before it is asked for. Measured on 2026-08-18: hiding the ground grid,
++            # registering an empty background, and adding visible geometry all fail to help --
++            # only slow-loading assets do. That is a race, not a content requirement.
++            #
++            # RTX also needs one warm-up frame: render 0 comes back black, render 1 has pixels.
++            # Set ARENA_PRERENDER=0 to disable this patch.
++            if bool(self.sim.get_setting("/isaaclab/render/rtx_sensors")):
++                import os as _os
++
++                _n = int(_os.environ.get("ARENA_PRERENDER", "4"))
++                for _ in range(_n):
++                    self.sim.render()
++
+         # add timeline event to load managers
+         self.load_managers()
+ 
+diff --git a/source/isaaclab_teleop/isaaclab_teleop/xr_anchor_manager.py b/source/isaaclab_teleop/isaaclab_teleop/xr_anchor_manager.py
+index a225b7f629..0c8c5e1796 100644
+--- a/source/isaaclab_teleop/isaaclab_teleop/xr_anchor_manager.py
++++ b/source/isaaclab_teleop/isaaclab_teleop/xr_anchor_manager.py
+@@ -87,6 +87,27 @@ class XrAnchorManager:
+             )
+         except Exception as e:
+             logger.warning(f"Failed to create XR anchor prim: {e}")
++            # LOCAL PATCH (2026-08-04): ``SingleXFormPrim`` calls
++            # ``SimulationManager._get_backend_utils()``, which Isaac Lab's ``PhysxManager``
++            # does not implement, so anchor creation fails on every run of this stack. The
++            # anchor is a plain ``Xform`` with no physics attached, so author it directly with
++            # USD instead. Without this the anchor prim is missing while the
++            # ``/xrstage/customAnchor`` setting below still points at it, and the headset ends
++            # up at the anchor's parent (the pelvis) instead of at ``anchor_pos``, one metre
++            # below it -- i.e. the operator floats above the robot instead of standing in it.
++            try:
++                import isaacsim.core.utils.stage as stage_utils
++                from pxr import Gf, UsdGeom
++
++                stage = stage_utils.get_current_stage()
++                xform = UsdGeom.Xform.Define(stage, self._xr_anchor_headset_path)
++                xform.ClearXformOpOrder()
++                anchor_pos = tuple(float(v) for v in self._xr_cfg.anchor_pos)
++                xform.AddTranslateOp().Set(Gf.Vec3d(*anchor_pos))
++                xform.AddOrientOp().Set(Gf.Quatf(float(w), float(x), float(y), float(z)))
++                logger.warning(f"Created XR anchor prim via USD fallback at {self._xr_anchor_headset_path}")
++            except Exception as fallback_error:
++                logger.error(f"USD fallback for XR anchor prim also failed: {fallback_error}")
+ 
+         # Configure carb settings for XR rendering
+         if hasattr(carb, "settings"):

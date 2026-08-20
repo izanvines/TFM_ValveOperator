@@ -74,6 +74,17 @@ versión nueva de Arena.
 Un `git checkout` o un `git submodule update` en el checkout vivo **borra estos cambios sin
 avisar**. Por eso están aquí.
 
+Los parches se generan contra la **base de upstream** (`git merge-base HEAD origin/release/0.2.1`),
+no contra el árbol de trabajo. Hasta el 2026-08-20 se generaban con `git diff -- <fichero>`, que
+sólo ve cambios *sin committear*: en cuanto el trabajo se fue committeando en la rama
+`tfm/g1-valve`, **siete de los ocho parches se vaciaron en silencio** y este README seguía
+afirmando que aquí estaba el registro. `sync.sh` avisa ahora si alguno sale vacío, que casi siempre
+significa que el fichero cambió de sitio en upstream.
+
+`isaaclab_submodule.patch` cubre **los dos** parches del submódulo, incluido el de
+`isaaclab_prerender.patch`; ese fichero se mantiene aparte porque es el que desbloquea la grabación
+y conviene poder leerlo solo. No apliques los dos.
+
 ### `scripts/`
 
 Van montados en el contenedor como `/eval/arena_extras/` (el mount `~/eval` → `/eval`).
