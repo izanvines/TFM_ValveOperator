@@ -1,0 +1,77 @@
+diff --git a/isaaclab_arena/assets/background_library.py b/isaaclab_arena/assets/background_library.py
+index ceab3e299..b65193fee 100644
+--- a/isaaclab_arena/assets/background_library.py
++++ b/isaaclab_arena/assets/background_library.py
+@@ -182,23 +182,62 @@ class MapleTableRobolab(LibraryBackground):
+ 
+ @register_asset
+ class OfficeGaussianSplatBackground(LibraryBackground):
+-    """Office reconstruction (Gaussian Splatting / NuRec) photorealistic backdrop.
++    """Reconstruccion Gaussian Splatting / NuRec de la oficina, como fondo fotorrealista.
+ 
+-    Scale/position/rotation come from env vars so we can align the (arbitrary NuRec
+-    coordinate frame) splat to the metric scene without re-editing code:
+-      OFFICE_GS_USD   : path to the .usdz       (default /datasets/office_gs/export_sh_optimized.usdz)
+-      OFFICE_GS_SCALE : uniform scale factor    (default 1.0)
+-      OFFICE_GS_POS   : "x,y,z" translation (m) (default "0,0,0")
+-      OFFICE_GS_ROT   : "x,y,z,w" quaternion    (default "0,0,0,1")
+-    Visual-only (ObjectType.BASE -> no collision).
++    El asset por defecto es ``/datasets/office_video_nurec_rot.usd``: la oficina de Madrid
++    reconstruida a partir de un video (545 fotogramas), **ya enderezada y colocada**, y con un
++    plano de colision de 10 x 10 m en Z=0 para que el robot tenga suelo.
++
++    Por eso la pose por defecto es la IDENTIDAD y la escala 1.0: el fichero trae dentro su propia
++    ``translate`` + ``rotateZYX(-89,0,0)``, verificada contra el dato (las 538 camaras de captura
++    quedan a 1,50 m de altura media y el suelo a 0,58 grados de la horizontal). Cualquier rotacion
++    o escala que se le ponga aqui la estropea.
++
++    OJO CON LA ROTACION: el campo se llama ``rotation_xyzw`` pero ``object_base.py:83`` lo pasa a
++    IsaacLab tal cual, y alli se lee como **wxyz**. La identidad de verdad es por tanto
++    ``1,0,0,0``; el ``0,0,0,1`` que parece identidad es un giro de 180 grados en yaw.
++
++    Historico: hasta 2026-08-19 el defecto era ``office_gs/export_sh_optimized.usdz``, un NuRec
++    heredado del que no se conservan ni las imagenes ni el workspace de COLMAP -- y que ademas no
++    es esta oficina. Arrastra la matriz interna transpuesta, que USD lee como proyectiva y deforma
++    el splat en cuanto se le aplica una pose.
++
++    Variables de entorno para probar otro fichero sin editar codigo:
++      OFFICE_GS_USD   : ruta al .usd/.usdz       (defecto /datasets/office_video_nurec_rot.usd)
++      OFFICE_GS_SCALE : escala uniforme          (defecto 1.0)
++      OFFICE_GS_POS   : traslacion "x,y,z" en m  (defecto "0,0,0")
++      OFFICE_GS_ROT   : cuaternion, leido wxyz   (defecto -90 deg en Z, ver abajo)
++
++    Visual-only para Arena (``ObjectType.BASE`` -> sin colision propia); la colision la aporta el
++    ``/World/Plane`` que trae el propio fichero.
+     """
+ 
+     name = "office_gs"
+     tags = ["background", "gaussian_splat", "nurec"]
+-    usd_path = os.environ.get("OFFICE_GS_USD", "/datasets/office_gs/export_sh_optimized.usdz")
++    usd_path = os.environ.get("OFFICE_GS_USD", "/datasets/office_video_nurec_rot.usd")
+     _scale = float(os.environ.get("OFFICE_GS_SCALE", "1.0"))
+     _pos = tuple(float(v) for v in os.environ.get("OFFICE_GS_POS", "0,0,0").split(","))
+-    _rot = tuple(float(v) for v in os.environ.get("OFFICE_GS_ROT", "0,0,0,1").split(","))
++    # +90 grados sobre Z, limpio: en xyzw es (0, 0, sin45, cos45).
++    #
++    # Es la rotacion que Arena aplica al prim que inserta, `{ENV_REGEX_NS}/office_gs`, que es el
++    # que se ve en la UI. Con esto ese prim lee exactamente X=0, Y=0, Z=+90.
++    #
++    # EL ORDEN ES xyzw, como dice el nombre del campo. Las notas de VISOR_ISAAC_SIM_VNC.md dicen
++    # que object_base.py:83 lo pasa tal cual y que IsaacLab lo lee como wxyz; MEDIDO el 2026-08-19
++    # en el stage ya compuesto, eso es falso: escrito en wxyz el splat salia tumbado 89 grados en
++    # X, que es justo lo que se obtiene al leer un xyzw como wxyz. Corolario: la identidad es
++    # "0,0,0,1", no "1,0,0,0" (esto ultimo es un giro de 180 en X).
++    #
++    # No fiarse del calculo: comprobarlo con /eval/arena_extras/measure_gs_pose.py, que lee la
++    # matriz de mundo dentro del stage que compone Arena. Hay tres capas encima del fichero de
++    # origen (composicion vector-fila de USD, el orden del cuaternion, y el prim que Arena mete),
++    # y con tres capas conviene medir en vez de predecir.
++    _rot = tuple(
++        float(v)
++        for v in os.environ.get(
++            "OFFICE_GS_ROT", "0,0,0.70710678,0.70710678"
++        ).split(",")
++    )
+     initial_pose = Pose(position_xyz=_pos, rotation_xyzw=_rot)
+     object_min_z = -0.2
+ 

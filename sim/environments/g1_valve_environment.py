@@ -107,6 +107,56 @@ OPENNESS_SUCCESS_THRESHOLD = 0.5
 EPISODE_LENGTH_S = float(os.environ.get("ARENA_VALVE_EPISODE_S", "15.0"))
 
 
+
+def _apply_nurec_render_settings() -> None:
+    """Reaplica los ajustes de render que un asset NuRec declara y que Arena pierde al referenciarlo.
+
+    Un `.usd`/`.usdz` de NuRec lleva sus ajustes de render en el `customLayerData` de su capa raiz.
+    Cuando abres el fichero a mano en Isaac Sim, esa es la capa raiz del stage y Kit los aplica: se
+    ve nitido, con ray tracing, a 60 fps. Cuando Arena lo mete como fondo, el asset pasa a ser una
+    capa **referenciada**, y USD ignora el `customLayerData` de las capas referenciadas. Los
+    ajustes se caen en silencio -- no hay aviso, no hay error, solo se ve mal.
+
+    Dos de ellos son la diferencia entre que funcione y que no:
+
+        rtx:post:registeredCompositing:invertToneMap
+        rtx:post:registeredCompositing:invertColorCorrection
+
+    `registeredCompositing` es la etapa donde se componen las gaussianas de NuRec. Esos dos flags
+    le dicen que deshaga el mapeo de tonos y la correccion de color antes de componer. Sin ellos el
+    splat se tonemapea DOS VECES y sale lavado a blanco. Medido el 2026-08-19: la camara del robot
+    daba media 250 sobre 255 con el fondo puesto, y apagar la dome light no cambiaba nada -- porque
+    no era iluminacion, era post-proceso.
+
+    Los nueve valores son los que declaran los tres assets que hay en disco (`living_sim.usdz`,
+    `office_video_nurec.usdz` y su version podada), identicos en los tres. Los nombres estan
+    verificados contra las cadenas de `librtx.hydra.so`, no inventados.
+
+    Se aplican por `carb.settings` en vez de por `--kit_args` para que no dependan de que alguien
+    se acuerde de pasar diez flags en cada lanzamiento.
+    """
+    ajustes = {
+        "/rtx/rendermode": "RaytracedLighting",
+        "/rtx/post/tonemap/op": 2,
+        "/rtx/post/registeredCompositing/enabled": True,
+        "/rtx/post/registeredCompositing/invertColorCorrection": True,
+        "/rtx/post/registeredCompositing/invertToneMap": True,
+        "/rtx/post/histogram/enabled": False,
+        "/rtx/directLighting/sampledLighting/samplesPerPixel": 8,
+        "/rtx/material/enableRefraction": False,
+        "/rtx/matteObject/visibility/secondaryRays": True,
+        "/rtx/raytracing/fractionalCutoutOpacity": False,
+    }
+    try:
+        import carb
+
+        s = carb.settings.get_settings()
+        for k, v in ajustes.items():
+            s.set(k, v)
+        print(f"[arena] NuRec: reaplicados {len(ajustes)} ajustes de render del asset")
+    except Exception as exc:  # pragma: no cover - depende del runtime de Kit
+        print(f"[arena] AVISO: no se pudieron aplicar los ajustes de render de NuRec: {exc}")
+
 class G1ValveEnvironment(ExampleEnvironmentBase):
     """G1 (WBC/AGILE, no nav) opening a hand-wheel valve on an empty ground plane."""
 
@@ -248,6 +298,8 @@ class G1ValveEnvironment(ExampleEnvironmentBase):
         if getattr(args_cli, "background", "none") not in (None, "none"):
             background = self.asset_registry.get_asset_by_name(args_cli.background)()
             scene_assets.insert(0, background)
+            if "nurec" in getattr(background, "tags", []):
+                _apply_nurec_render_settings()
 
         scene = Scene(assets=scene_assets)
         return IsaacLabArenaEnvironment(
