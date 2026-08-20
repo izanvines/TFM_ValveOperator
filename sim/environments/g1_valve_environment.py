@@ -58,6 +58,68 @@ if TYPE_CHECKING:
 VALVE_SPAWN_XYZ = (0.55, 0.0, 0.80)  # -> wheel centre at (0.45, 0, 0.80)
 VALVE_SPAWN_QUAT_XYZW = (0.0, 0.0, 0.70710678, 0.70710678)  # +90 deg about Z
 
+# --- Las dos disposiciones de valvula --------------------------------------------------------
+#
+# Las dos existen en planta y la politica deberia resolver ambas:
+#
+#   frontal  el volante mira al robot, eje horizontal. Es una valvula sobre una linea VERTICAL,
+#            y se gira de frente, como un timon. Es la que se grabo en sesion_01.
+#   cenital  el volante mira hacia arriba, eje vertical. Es una valvula sobre una linea
+#            HORIZONTAL, y se gira alcanzando por encima.
+#
+# La rotacion de `cenital` sale de anadir -90 grados sobre Y a la de `frontal`. El motivo de que
+# sea sobre Y y no sobre algo mas evidente: el eje de giro de la rueda NO es un eje del asset tal
+# cual. El rig CAD lleva un `FixedJoint` con `localRot1` de -90 grados en X que reorienta los
+# cuerpos ANTES de aplicar la rotacion de spawn, asi que con la rotacion `frontal` el eje acaba en
+# X del mundo (medido, no derivado). Llevar ese eje de X a Z es lo que hace el -90 sobre Y.
+#
+# Y por eso mismo el offset del centro de la rueda -- (-0.10, 0, 0) respecto a VALVE_SPAWN_XYZ en
+# la disposicion frontal -- NO vale para la cenital: rota con la orientacion. Hay que medirlo con
+# `measure_valve_rig.py`, que lee la pose real del cuerpo de la rueda en vez de derivarla.
+#
+# ALTURAS. La frontal esta a 0.80 m, justo por encima de la altura de reposo de las munecas
+# (0.762), que es la postura natural para tirar de un volante con las dos manos. La cenital pide
+# otra cosa: para girar desde arriba el volante tiene que quedar POR DEBAJO de las munecas, o el
+# operador acaba con la muneca doblada. El valor es provisional hasta medirlo y probarlo con las
+# gafas.
+VALVE_LAYOUTS = {
+    "frontal": {
+        "quat_xyzw": (0.0, 0.0, 0.70710678, 0.70710678),
+        "pos": (0.55, 0.0, 0.80),  # -> rueda en (0.45, 0, 0.80)
+    },
+    "cenital": {
+        "quat_xyzw": (-0.5, -0.5, 0.5, 0.5),
+        "pos": (0.45, 0.0, 0.76),  # -> rueda en (0.45, 0, 0.66)
+    },
+}
+
+# MEDIDO con `measure_valve_rig.py` el 2026-08-20, y es la razon de que cada disposicion lleve su
+# posicion completa en vez de compartir XY y cambiar solo la altura:
+#
+#   disposicion   raiz -> centro de la rueda      dist. munecas
+#   frontal       (-0.10,  0,     0)              0.33 - 0.38 m
+#   cenital       (  0,    0,  -0.10)             0.46 - 0.48 m  <- con la raiz en (0.55, 0, 0.62)
+#
+# El offset ROTA con la orientacion, igual que rotaba el de la disposicion frontal respecto a la
+# geometria del asset. En cenital la rueda no se acerca 10 cm en X, sino que baja 10 cm, asi que
+# con la misma raiz queda mas baja Y mas lejos: 0.46 m contra 0.33, y 0.22 m por debajo de la
+# pelvis. Bajando la raiz a X=0.45 y subiendola a Z=0.76 la rueda acaba en (0.45, 0, 0.66),
+# a ~0.10 m por debajo de las munecas (0.762) -- que es la altura util para girar por encima --
+# y a una distancia comparable a la de la disposicion frontal.
+
+# Jitter de posicion por episodio, en metros. Acotado por el alcance: el volante queda a 0.45 m de
+# la pelvis y las munecas descansan a 0.762 m, asi que no sobra margen antes de que el operador
+# tenga que forzar la postura. Se aplica sobre XY y sobre la Z propia de cada disposicion.
+VALVE_JITTER_XYZ = (0.04, 0.06, 0.03)
+
+# Fuerza una disposicion concreta en vez de sortearla. Sirve para medir y para grabar sesiones
+# dedicadas a una sola disposicion. Vacio = sorteo 50/50 en cada reset.
+VALVE_LAYOUT_FIJA = os.environ.get("ARENA_VALVE_LAYOUT", "").strip().lower() or None
+if VALVE_LAYOUT_FIJA is not None and VALVE_LAYOUT_FIJA not in VALVE_LAYOUTS:
+    raise ValueError(
+        f"ARENA_VALVE_LAYOUT={VALVE_LAYOUT_FIJA!r} no existe. Opciones: {sorted(VALVE_LAYOUTS)}"
+    )
+
 # SPAWN THE ROBOT ALREADY STANDING. This is the single most important line in the file
 # for data quality, and z=0 -- inherited from the pick-and-place env this was derived from
 # -- is wrong once anything sits within arm's reach in front of the robot.
@@ -106,6 +168,62 @@ OPENNESS_SUCCESS_THRESHOLD = 0.5
 # discovered after the recording session.
 EPISODE_LENGTH_S = float(os.environ.get("ARENA_VALVE_EPISODE_S", "15.0"))
 
+
+
+
+def randomize_valve_layout(
+    env,
+    env_ids,
+    asset_cfg,
+    layouts: dict,
+    jitter_xyz: tuple,
+    layout_fijo: str | None = None,
+) -> None:
+    """Sortea disposicion y posicion de la valvula en cada reset.
+
+    Dos disposiciones discretas, no un rango continuo. Arena convierte un `PoseRange` en un
+    `randomize_object_pose` que muestrea UNIFORME, y eso daria valvulas a 37 o 62 grados --
+    orientaciones que en una refineria no existen y que ensucian el argumento del TFM. Las dos que
+    se sortean aqui (volante de frente sobre linea vertical, volante hacia arriba sobre linea
+    horizontal) existen las dos en planta.
+
+    La posicion lleva ademas un jitter uniforme por episodio. Sin el, todos los episodios arrancan
+    identicos y la politica puede resolver la tarea memorizando una trayectoria en vez de mirando
+    la camara: medido el 2026-08-19, GR00T y ACT dieron 10/10 los dos sobre 25 demos sin variacion,
+    que es un empate del que no se concluye nada.
+
+    Se delega en `set_object_pose` de Arena en vez de escribir la pose a mano: `Pose.to_tensor`
+    devuelve el cuaternion en xyzw y la convencion que espera IsaacLab no coincide con la que
+    sugiere el nombre del campo. Reutilizar el camino que ya funciona evita repetir ese error.
+
+    La pose sorteada NO hay que guardarla aparte: `InitialStateRecorder` graba
+    `initial_state/articulation/valve/root_pose` en el post-reset, y `env.reset_to` la restaura al
+    re-renderizar, asi que la etapa B reproduce la disposicion exacta de cada episodio.
+    """
+    import random
+
+    from isaaclab_arena.terms.events import set_object_pose
+    from isaaclab_arena.utils.pose import Pose
+
+    if env_ids is None:
+        return
+
+    nombres = sorted(layouts)
+    for _ in (env_ids.tolist() if hasattr(env_ids, "tolist") else list(env_ids)):
+        elegido = layout_fijo if layout_fijo else random.choice(nombres)
+        cfg = layouts[elegido]
+        base = cfg["pos"]
+        pos = tuple(base[i] + random.uniform(-jitter_xyz[i], jitter_xyz[i]) for i in range(3))
+        set_object_pose(
+            env,
+            env_ids,
+            asset_cfg=asset_cfg,
+            pose=Pose(position_xyz=pos, rotation_xyzw=cfg["quat_xyzw"]),
+        )
+        # `set_object_pose` escribe la MISMA pose en todos los env_ids, asi que con varios entornos
+        # todos compartirian disposicion. Con num_envs=1 (lo unico que admite el embodiment de
+        # teleoperacion) es correcto; si algun dia hacen falta varios, hay que trocear env_ids.
+        break
 
 
 def _apply_nurec_render_settings() -> None:
@@ -302,12 +420,42 @@ class G1ValveEnvironment(ExampleEnvironmentBase):
                 _apply_nurec_render_settings()
 
         scene = Scene(assets=scene_assets)
+        # --- Sorteo de disposicion y posicion de la valvula ---------------------------------
+        # Se sustituye el evento `valve` que Arena genera solo. `object_base._init_event_cfg()`
+        # mira el tipo de la pose inicial: con un `Pose` fijo produce un `set_object_pose` con esa
+        # pose, y con un `PoseRange` un `randomize_object_pose` que muestrea UNIFORME. Ninguno de
+        # los dos sirve: queremos DOS disposiciones discretas mas jitter, no un continuo.
+        #
+        # Se hace por `env_cfg_callback` para no tocar el nucleo de Arena; es el gancho que existe
+        # justo para esto (`arena_env_builder.py:272`).
+        from isaaclab.managers import EventTermCfg as _EventTermCfg
+        from isaaclab.managers import SceneEntityCfg as _SceneEntityCfg
+
+        def _sortear_valvula(env_cfg):
+            env_cfg.events.valve = _EventTermCfg(
+                func=randomize_valve_layout,
+                mode="reset",
+                params={
+                    "asset_cfg": _SceneEntityCfg("valve"),
+                    "layouts": VALVE_LAYOUTS,
+                    "jitter_xyz": VALVE_JITTER_XYZ,
+                    "layout_fijo": VALVE_LAYOUT_FIJA,
+                },
+            )
+            return env_cfg
+
+        if VALVE_LAYOUT_FIJA:
+            print(f"[arena] valvula: disposicion FIJA '{VALVE_LAYOUT_FIJA}'")
+        else:
+            print(f"[arena] valvula: sorteo entre {sorted(VALVE_LAYOUTS)} + jitter {VALVE_JITTER_XYZ} m")
+
         return IsaacLabArenaEnvironment(
             name=self.name,
             embodiment=embodiment,
             scene=scene,
             task=task,
             teleop_device=teleop_device,
+            env_cfg_callback=_sortear_valvula,
         )
 
     @staticmethod
