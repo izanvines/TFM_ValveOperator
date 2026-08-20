@@ -85,11 +85,15 @@ VALVE_SPAWN_QUAT_XYZW = (0.0, 0.0, 0.70710678, 0.70710678)  # +90 deg about Z
 VALVE_LAYOUTS = {
     "frontal": {
         "quat_xyzw": (0.0, 0.0, 0.70710678, 0.70710678),
-        "pos": (0.55, 0.0, 0.80),  # -> rueda en (0.45, 0, 0.80)
+        "pos": (0.50, 0.0, 0.80),  # -> rueda en (0.40, 0, 0.80)
     },
     "cenital": {
-        "quat_xyzw": (-0.5, -0.5, 0.5, 0.5),
-        "pos": (0.45, 0.0, 0.76),  # -> rueda en (0.45, 0, 0.66)
+        # (+0.5,+0.5,+0.5,+0.5), no (-0.5,-0.5,+0.5,+0.5): las dos dejan el eje de la rueda
+        # vertical, pero la primera version la dejaba mirando HACIA ABAJO. Comprobado en las gafas
+        # el 2026-08-20. Al invertirla el offset de la rueda tambien se invierte, de (0,0,-0.10) a
+        # (0,0,+0.10), asi que la raiz baja para que la rueda acabe a la misma altura util.
+        "quat_xyzw": (0.5, 0.5, 0.5, 0.5),
+        "pos": (0.35, 0.0, 0.56),  # -> rueda en (0.35, 0, 0.66)
     },
 }
 
@@ -106,6 +110,12 @@ VALVE_LAYOUTS = {
 # pelvis. Bajando la raiz a X=0.45 y subiendola a Z=0.76 la rueda acaba en (0.45, 0, 0.66),
 # a ~0.10 m por debajo de las munecas (0.762) -- que es la altura util para girar por encima --
 # y a una distancia comparable a la de la disposicion frontal.
+#
+# ACERCADAS el 2026-08-20 probando con las gafas. Primero las dos 5 cm (rueda de x=0.45 a
+# x=0.40), y despues la cenital otros 5 cm mas (x=0.35), porque girar un volante desde arriba
+# exige acercar el codo al cuerpo y a la misma distancia se hacia mas dificil que la frontal.
+# Resultado: frontal a 0.43 m de la pelvis, cenital a 0.35 -- deliberadamente distintas, no un
+# descuido. La distancia comoda depende de COMO se agarra, no solo de donde esta.
 
 # Jitter de posicion por episodio, en metros. Acotado por el alcance: el volante queda a 0.45 m de
 # la pelvis y las munecas descansan a 0.762 m, asi que no sobra margen antes de que el operador
