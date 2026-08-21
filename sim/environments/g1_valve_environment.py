@@ -93,7 +93,13 @@ VALVE_LAYOUTS = {
         # el 2026-08-20. Al invertirla el offset de la rueda tambien se invierte, de (0,0,-0.10) a
         # (0,0,+0.10), asi que la raiz baja para que la rueda acabe a la misma altura util.
         "quat_xyzw": (0.5, 0.5, 0.5, 0.5),
-        "pos": (0.35, 0.0, 0.56),  # -> rueda en (0.35, 0, 0.66)
+        # DISTANCIA, probada con las gafas. 0.35 se juzgo lejos, se bajo a 0.20 (15 cm) y con la
+        # rueda ahi el operador la describio como "demasiado cerca" -- consistente con la
+        # geometria: la rueda tiene 0.10 m de radio, asi que a x=0.20 su borde cae en x=0.10, a
+        # 0.66 m de altura, o sea encima del propio cuerpo del robot (pelvis en x=0, z=0.74).
+        # 0.30 es el punto intermedio que pidio el operador el 2026-08-21: 5 cm mas cerca que
+        # 0.35, no 15. Deja el borde de la rueda en x=0.20, ya fuera del torso.
+        "pos": (0.30, 0.0, 0.56),  # -> rueda en (0.30, 0, 0.66)
     },
 }
 
