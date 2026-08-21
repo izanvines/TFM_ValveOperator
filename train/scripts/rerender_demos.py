@@ -52,6 +52,12 @@ parser.add_argument(
     help="indices de episodio a re-renderizar; vacio = todos",
 )
 parser.add_argument(
+    "--libre",
+    action="store_true",
+    default=False,
+    help="reproduce en lazo abierto, sin imponer los estados grabados (comportamiento anterior)",
+)
+parser.add_argument(
     "--validate_states",
     action="store_true",
     default=False,
@@ -105,6 +111,22 @@ def comparar_estados(estado_dataset, estado_runtime, env_index) -> tuple[bool, s
                     log += (f'  ["{tipo}"]["{nombre}"]["{campo}"]  max|d|={float(d.max()):.4f} '
                             f'en [{i}]: dataset {float(ds[i]):.4f} runtime {float(rt[i]):.4f}\n')
     return coinciden, log
+
+
+def _a_torch(x):
+    """Devuelve `x` como tensor de torch, venga como venga.
+
+    `ArticulationData` entrega estos campos como `wp.array` en unas rutas y como tensor de torch
+    en otras, y `wp.array` **no admite indexado por elemento**: `data.joint_pos[0, 0]` revienta
+    con `RuntimeError: Item indexing is not supported on wp.array objects`. Pasaba solo al leer
+    un escalar, asi que el re-render moria despues de construir el entorno -- dos minutos de
+    carga tirados por una lectura de una sola cifra.
+    """
+    if isinstance(x, torch.Tensor):
+        return x
+    import warp as wp
+
+    return wp.to_torch(x)
 
 
 def main():
@@ -172,7 +194,7 @@ def main():
     # Umbral de exito en unidades del joint: la apertura se normaliza linealmente sobre los limites
     # del joint (`Openable.get_openness`), y el exito es apertura > 0.5. Se leen los limites del
     # propio articulado en vez de dar por hecho 0..360 grados.
-    lim = env.scene["valve"].data.joint_pos_limits[0, 0]
+    lim = _a_torch(env.scene["valve"].data.joint_pos_limits)[0, 0]
     umbral_apertura = float(lim[0] + 0.5 * (lim[1] - lim[0]))
     print(f"[rerender] umbral de exito: joint_pos >= {umbral_apertura:.4f} rad "
           f"({umbral_apertura * 180.0 / 3.141592653589793:.1f} grados)")
@@ -184,7 +206,8 @@ def main():
             estado_inicial = episodio.get_initial_state()
             # Restaura la pose de la valvula y la del robot tal y como se grabaron. Esto es lo que
             # hace valida la etapa B cuando la valvula se aleatoriza: no se re-sortea, se restaura.
-            env.reset_to(estado_inicial, torch.tensor([0], device=env.device), is_relative=True)
+            ids_entorno = torch.tensor([0], device=env.device)
+            env.reset_to(estado_inicial, ids_entorno, is_relative=True)
 
             pasos = 0
             apertura_max = 0.0
@@ -194,15 +217,37 @@ def main():
                     break
                 env.step(accion.unsqueeze(0) if accion.ndim == 1 else accion)
                 pasos += 1
-                apertura_max = max(apertura_max, float(env.scene["valve"].data.joint_pos[0, 0]))
-                if validar:
-                    esperado = episodio.get_next_state()
-                    if esperado is not None:
-                        ok, log = comparar_estados(esperado, env.scene.get_state(is_relative=True), 0)
-                        if not ok:
-                            discrepancias += 1
-                            if discrepancias <= 3:
-                                print(f"[rerender] {nombres[idx]} paso {pasos}: estados NO coinciden\n{log}")
+
+                esperado = episodio.get_next_state()
+                if validar and esperado is not None:
+                    ok, log = comparar_estados(esperado, env.scene.get_state(is_relative=True), 0)
+                    if not ok:
+                        discrepancias += 1
+                        if discrepancias <= 3:
+                            print(f"[rerender] {nombres[idx]} paso {pasos}: estados NO coinciden\n{log}")
+
+                # FORZADO DE ESTADO. Sin esto la reproduccion no reproduce: se desvia en el paso 1
+                # y nunca vuelve. Medido en demo_14 de sesion_02 con --validate_states, el primer
+                # paso ya discrepa 13.1 rad/s en `right_ankle_pitch_joint`, y 472 de 473 pasos
+                # discrepan. La causa es que el HDF5 solo guarda las 23 dims de la accion, que
+                # gobiernan brazos y comandos; las PIERNAS las lleva AGILE en lazo cerrado y aqui
+                # se vuelve a ejecutar en vez de reproducirse. Aterriza en otro sitio desde el
+                # principio, el torso queda distinto, las munecas agarran el radio en otro punto y
+                # el volante acaba girando 113 grados en vez de 191.
+                #
+                # Se usa `scene.reset_to` y NO `env.reset_to`: el segundo llama a
+                # `record_pre_reset` y a `_reset_idx`, o sea que exportaria un episodio y volveria
+                # a sortear la disposicion de la valvula EN CADA PASO. El de la escena solo
+                # escribe el estado.
+                #
+                # Queda una desviacion acotada a UN paso -- la imagen se renderiza dentro de
+                # `step()`, antes de imponer -- en vez de acumularse a lo largo del episodio.
+                if not args_cli.libre and esperado is not None:
+                    env.scene.reset_to(esperado, ids_entorno, is_relative=True)
+
+                apertura_max = max(
+                    apertura_max, float(_a_torch(env.scene["valve"].data.joint_pos)[0, 0])
+                )
             # Cerrar el episodio y exportarlo con el numero de demo de la fuente, para que
             # demo_N de la salida sea demo_N de la entrada y no haga falta traducir despues.
             env.recorder_manager.record_pre_reset([0], force_export_or_skip=False)
