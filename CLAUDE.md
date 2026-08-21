@@ -71,15 +71,28 @@ Hardware: 2× RTX PRO 6000 Blackwell (96 GB each), 250 GB RAM, ~1.4 TB free.
 Defined in `~/TFM/IsaacLab-Arena/isaaclab_arena_environments/g1_valve_environment.py`, registered
 under the name `g1_valve` in `isaaclab_arena_environments/cli.py`.
 
-- **Scene ("diáfano")**: ground plane + dome light only. No background USD. Keep it that way —
-  the Gaussian-Splatting office backdrop has an unresolved XR rendering bug (see notes) and is
-  **out of scope** for the TFM.
+- **Scene**: there are two, and which one you want depends on what you are doing. **Diáfano**
+  (ground plane + dome light, `--background none`) is what gets **recorded** — the splat costs
+  ~39 ms per step and you pay that in headset FPS across hours of teleoperation. **Office**
+  (`--background office_gs`, a NuRec Gaussian Splat of the Madrid office) is what ends up in the
+  **dataset**, applied afterwards by replaying the recorded actions through
+  `train/scripts/rerender_demos.py`. Reversed on 2026-08-19; the "out of scope" line under
+  *Decisions taken (2026-08-17)* is historical.
 - **Embodiment**: `g1_wbc_agile_pink` — legs held by the AGILE ONNX whole-body-balance policy,
   upper body driven by Pink IK from teleop. `--lock_waist` defaults to **on** (static task).
 - **Valve**: jescobars' CAD rig, `isaaclab_arena/assets/usd/valve_rig.usdz`, wrapped by
   `valve_rig_arena.usda` and registered as the `Valve` asset in
   `isaaclab_arena/assets/object_library.py`. Joint name is **`RevoluteJoint`**. The
   procedural placeholder `valve_handwheel_v1.usda` (joint `valve_joint`) is still on disk.
+- **Valve layout**: drawn at every reset, 50/50, between `frontal` (wheel facing the robot,
+  horizontal axis — a valve on a vertical line, turned like a ship's wheel) and `cenital` (wheel
+  facing up, vertical axis — a valve on a horizontal line, reached over the top), plus
+  ±(4, 6, 3) cm of position jitter. Both layouts exist in a real plant, so the policy should
+  solve both. `VALVE_LAYOUTS` in `g1_valve_environment.py`; force one with
+  **`ARENA_VALVE_LAYOUT=frontal|cenital`** to measure, or for a session dedicated to one.
+  The two sit at deliberately *different* distances (0.43 m and 0.30 m from the pelvis) —
+  turning a wheel from above wants the elbow closer in, so equal distances are not equally
+  comfortable. Both numbers came out of the headset, not out of a calculation.
 - **Success**: openness > 0.5 (half a turn), via `OpenDoorTask`.
 - **Episode budget**: `EPISODE_LENGTH_S`, default 15 s at 50 Hz. Override with
   `ARENA_VALVE_EPISODE_S`. If turning the wheel needs longer than the budget, demos die by
@@ -375,7 +388,8 @@ it onto a branch is worth doing early.
 - **400 demonstrations recorded by hand**, following NVIDIA's e2e tutorial. Isaac Lab Mimic
   (`generate_dataset.py`) was considered and rejected as a schedule risk.
 - **PICO 4 Ultra**, real headset, already proven to connect.
-- Gaussian-Splatting backdrop **out of scope**; the diáfano scene is the deliverable.
+- ~~Gaussian-Splatting backdrop **out of scope**~~ — **reversed on 2026-08-19**. Recording
+  still happens in the diáfano scene; the splat goes in afterwards, by re-render.
 - **Only the valve asset is taken from jescobars' (Javi's) work** — see "Do not swap the robot".
 - Locomotion commands are to be frozen/removed from the action space, not merely left untouched
   (see "Action space" above). `ARENA_STATIC_BASE=1` does the freezing.
@@ -402,7 +416,7 @@ unaffected.
 `ARENA_STATIC_BASE` and `ARENA_FIX_BASE` are not the same thing and neither replaces the other:
 the first stops the operator walking the robot away, the second stops physics moving it.
 
-## Current state (2026-08-18, evening)
+## State on 2026-08-18, evening (historical — see "Current state" at the end)
 
 **One demonstration recorded, verified, and converted.** The pipeline runs end to end for the
 first time: teleoperate → HDF5 with camera frames → GR00T-LeRobot dataset.
@@ -460,7 +474,7 @@ loosely. For a heavier, more realistic valve raise **`physxJoint:jointFriction`*
 a constant break-away torque, which is how a real gate valve behaves) rather than the damping
 (viscous, speed-proportional).
 
-Not yet done, in order:
+Not yet done **as of that date** — superseded by the final section:
 
 1. **Record one grasping demo and verify dims [0]/[1] are no longer constant**, then the
    400-demo session. Grasping is the decision (2026-08-18): more realistic for an Oil & Gas
@@ -474,3 +488,152 @@ Not yet done, in order:
 Open, lower priority: the valve floats with no standpipe (a probe sphere proved extra geometry
 is not needed for the *bug*, but the standpipe is still worth it for the thesis figures); the
 `ViewerCfg` third-person framing is poor for figures.
+
+---
+
+## Current state (2026-08-21)
+
+Where this and the 08-18 entries disagree, this one wins.
+
+### Both training arms have been run, end to end, on real recorded data
+
+Not a smoke test: 25 teleoperated demos → LeRobot → **GR00T fine-tune** and **ACT**, both
+evaluated inside the simulator on `g1_valve`, both at 10/10 successes. The full recipe, with the
+commands, is in **[`TRAIN.md`](TRAIN.md)**; the dry run and its numbers are written up in
+[`docs/ensayo_2026-08.md`](docs/ensayo_2026-08.md), and there is a video of each policy acting
+in `videos/`.
+
+That result is *encouraging but not the thesis*. It is 25 demos of a single valve layout with no
+grasp, and both policies saw the same easy initial condition every time. Do not read it as
+"the task is solved".
+
+Four things cost hours and will cost them again:
+
+- **GR00T on 2 GPUs hangs.** NCCL sits at "rank to GPU mapping is currently unknown", both ranks
+  burn CPU and neither touches the GPU. `NUM_GPUS=1` trains at 3.2 steps/s — 10k steps in 54
+  minutes, which is fast enough that the multi-GPU path is not worth debugging.
+- **ACT emitted exactly zeros**, and it was not a training failure. Moving the policy to `cuda:1`
+  leaves the normalisation buffers' std at 0, the state normalises to ~1e8 and the network
+  saturates. Use `CUDA_VISIBLE_DEVICES=1` with `--device cuda`, never `--device cuda:1`.
+  `train/scripts/act_remote_policy.py` now refuses to start if those buffers look wrong.
+- **`lerobot==0.3.3` is the last v2.1 release.** 0.4.0 moves to dataset format v3.0 and will not
+  read what the converter writes.
+- **CloudXR owns port 49100**, hardcoded, which is also `--livestream 1`'s default signal port.
+  On this shared workstation the livestream has to move to **49120/48020** (allowed in ufw for
+  `172.22.41.0/24`). A black WebRTC stream during teleoperation is usually this.
+
+### The Madrid office splat is in, and it goes in by re-render
+
+`office_gs` now resolves to `/datasets/office_video_nurec_rot.usd` (the Madrid reconstruction —
+*not* `office_video_nurec.usdz`, which is a different office in Bilbao), rotated +90° about Z.
+
+The splat is **not** rendered while teleoperating. Demos are recorded in the diáfano scene and
+the office is applied afterwards by `train/scripts/rerender_demos.py`, which replays the recorded
+actions with the background loaded and re-records the camera. Measured:
+
+| | |
+|---|---|
+| cost of the splat | ~39 ms/step → ~2.4 h to re-render 400 demos, unattended |
+| survival | 24 of 25 (the one lost was already succeeding by 0.8°) |
+| replay drift in the final valve angle | mean +1.5°, range −24° to +50° |
+| does NuRec perturb the physics? | **no** — same 257 steps with and without |
+| size | 60.7 MB/demo; the office compresses worse (2.77 GB vs 1.52 GB for 25) |
+
+Two traps in the splat itself, both silent. USD **ignores `customLayerData` on a referenced
+layer**, so the render settings the splat ships with never get applied — `g1_valve_environment.py`
+reapplies them as carb settings when the background is tagged `nurec`. And `rotation_xyzw` really
+is **xyzw**, whatever `~/TFM/VISOR_ISAAC_SIM_VNC.md` says; identity is `0,0,0,1`. Measure it with
+`sim/scripts/measure_gs_pose.py` instead of trusting either note — that one cost three wrong
+guesses in a row.
+
+### The re-render has to force the recorded state, or it does not reproduce the demo
+
+Found on 2026-08-21 and it invalidated a whole session's output before anyone noticed. Replaying
+the recorded actions in the office scene produced a *different* trajectory: of 25 demos that all
+succeeded when teleoperated, only 16 still turned the wheel past half a turn on replay. Worst
+case `demo_14`, 191.1° recorded → **113.7°** replayed.
+
+`--validate_states` located it exactly. The states diverge at **step 1**, not gradually, and not
+in the joint positions but in the joint *velocities*:
+
+```
+demo_14 paso 1: ["robot"]["joint_velocity"] max|d|=13.11 en [14]: dataset 3.2552 runtime -9.8579
+472 of 473 steps discrepant
+```
+
+Index `[14]` is `right_ankle_pitch_joint` and `[18]` is `right_ankle_roll_joint` — **ankles**.
+That is the whole explanation: the HDF5 stores the 23-dim action, which drives the arms and the
+command channels, but **the legs are driven by AGILE in closed loop and are not replayed — they
+re-run**. They land somewhere else from the first step, the torso ends up slightly different, the
+wrists grip the spoke at a different point, and by the end of the episode the wheel is 80° short.
+Pushing a wheel head-on with an open hand tolerates that; grasping a spoke from above does not,
+which is why the frontal-only `sesion_01` lost 1 of 25 and looked fine.
+
+The fix is not to make the physics deterministic — it is not to simulate at all. The HDF5 records
+the **full scene state at every step**, so `rerender_demos.py` now imposes it after each `step()`
+instead of letting the controllers run free. Measured over all 50 demos of `sesion_02` +
+`sesion_03`: **50/50 reproduce, worst wheel-angle difference 1.1°** (against 81° before), no black
+frames. That residual 1.1° is one step of physics — the frame is rendered inside `step()`, just
+before the state is imposed.
+
+Two traps in implementing it:
+
+- Use **`env.scene.reset_to(...)`**, never `env.reset_to(...)`. The latter calls
+  `record_pre_reset()` and `_reset_idx()`, so calling it per step would export an episode and
+  **re-draw the valve layout on every step**.
+- `ArticulationData` hands these fields back as `wp.array` on some paths, and `wp.array` does not
+  support item indexing — `data.joint_pos[0, 0]` raises `RuntimeError: Item indexing is not
+  supported on wp.array objects`. It only bites when reading a scalar, so it killed the run
+  *after* two minutes of loading. `_a_torch()` normalises first.
+
+`--libre` restores the old open-loop behaviour if it is ever needed for comparison.
+
+### Decisions taken on 2026-08-21
+
+- **Grasp the wheel with the trigger.** Settled after being open since the 18th. Only the
+  trigger: trigger and grip together cancel to 0, and 0 means *open hand* to the environment.
+- **`sesion_01` (25 demos, pushing with an open hand) is a pipeline test, not training data.**
+  It goes in the TFM as validation that the flow works. The definitive dataset starts at
+  `sesion_02` and is recorded with a grasp.
+- **Sessions of 25.** NVIDIA recommends 20–50; operator fatigue shows up in the demonstrations
+  and the policy copies exactly that.
+- Episode budget raised to **30 s** for recording. The episode ends by itself on success, so a
+  generous budget only lengthens *failures* — while too short a budget turns a near-success into
+  a timeout, and **a demo that times out is never written**.
+- **Overhead valve at 0.30 m from the pelvis**, frontal at 0.43 m. Tried 0.20 m in the headset
+  and it was too close — consistent with the geometry, since the wheel's 0.10 m radius puts its
+  near edge on the robot's own body at that distance.
+- **`sesion_02` and `sesion_03` recorded**: 50 demos, 25 each, all successful, grasping with the
+  trigger, valve layout drawn at every reset. Hands non-constant (closed 51–56 % of steps), no
+  black frames. Both re-rendered with the office at 50/50.
+- **The two hands record the same sign** (−0.5 closed, 0 open), not the +0.5/−0.5 the retargeter
+  note predicts. Since the value is `0.5·trigger − 0.5·squeeze` negated on one side, both reading
+  −0.5 means one hand is on the grip and the other on the trigger. It works — and is *more*
+  uniform than the documented asymmetry — but the gesture must not change mid-dataset, or
+  "closed" ends up encoded two contradictory ways.
+
+### Still open
+
+1. Record the remaining demos toward 400 (50 done), re-rendering each session as it lands.
+2. Freeze or drop the locomotion dims `[16:19]` before the GR00T conversion — 8 of 23 dims still
+   have std = 0.
+3. ~~`--device cpu` is not honoured during the re-render.~~ Still true — the env cfg comes up
+   `cuda:0` whatever you pass — but it stopped mattering once the state is forced, since the
+   physics no longer decides the outcome. Do **not** try to fix it by passing `--device cpu`:
+   that path hangs (28 min without finishing one episode) and PhysX reports
+   `Failed to get a valid attached USD stage id`.
+4. `sesion_01_office_ok` was produced by the old open-loop re-render, so its images do not
+   reproduce the recorded demos either — the drift just never crossed the threshold, being
+   frontal-only pushes. It is a pipeline test and **not training data**, so it is being left as
+   is; redo it with state forcing only if it ends up in a figure.
+5. ~~Dome light: 3000 at re-render, 1500 at recording.~~ Checked on 2026-08-21 and it is a
+   non-issue: `OFFICE_GS_LIGHT` is only read on the NuRec path
+   (`g1_valve_environment.py:326`, default **3000**), so the `OFFICE_GS_LIGHT=1500` in
+   `LAUNCH.md`'s Mode C is inert with `--background none`. The dataset's images all come from
+   the re-render, so what matters is that **every re-render leaves the variable unset** —
+   `sesion_01_office_ok` was produced that way. Set it and you split the dataset in two.
+6. Cosmetic, for the figures: the valve floats with no standpipe, there is a doubled ground plane
+   (`/World/Plane` plus Arena's `ground_plane`) and a nested `/PhysicsScene`.
+7. ~~`LAUNCH.md` still recommends port 49100 for Mode A; add the re-render as a Mode D.~~ Done
+   on 2026-08-21: Mode A now warns that 49100 is CloudXR's, and **Mode D** documents the
+   re-render and the video extraction.

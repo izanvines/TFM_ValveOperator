@@ -64,6 +64,11 @@ siempre**. Apunta el cliente a `172.22.41.51` directamente.
 Para inspeccionar la escena, hacer capturas para la memoria, o comprobar que el entorno carga.
 No hay teleoperación: el robot se queda de pie en una pose estable.
 
+> **Ojo con el puerto.** `--livestream 1` fija el 49100, que es el que ocupa CloudXR
+> (`isaacteleop/cloudxr/wss.py:244`, sin opción de CLI). Si el runtime de CloudXR está en marcha,
+> este modo sale **negro**. Para CloudXR antes, o usa `--livestream 2` con los `signalPort`
+> 49120 / `streamPort` 48020 como en el modo B.
+
 ```bash
 docker exec isaaclab_arena-latest bash -c \
  'cd /workspaces/isaaclab_arena && unset DISPLAY && export HOME=/home/ivines && \
@@ -246,11 +251,51 @@ El YAML se copia de `g1_static_apple_config.yaml` (mismo embodiment G1, 43 DoF, 
 
 ---
 
+## Modo D — Meter el fondo de oficina en un dataset ya grabado
+
+Las demos se graban en la escena diáfana (modo C) porque el splat cuesta ~39 ms por paso y eso
+sale de los FPS del casco. La oficina se aplica **después**, sin gafas y sin nadie delante.
+
+```bash
+docker exec -w /workspaces/isaaclab_arena isaaclab_arena-latest bash -c \
+ 'unset DISPLAY && export HOME=/home/ivines && unset OFFICE_GS_LIGHT && \
+  /isaac-sim/python.sh -u /eval/arena_extras/rerender_demos.py \
+    --dataset_file /datasets/isaaclab_arena/g1_valve/sesion_02.hdf5 \
+    --output_file  /datasets/isaaclab_arena/g1_valve/sesion_02_office.hdf5 \
+    --enable_cameras --device cuda:0 \
+    g1_valve --background office_gs --embodiment g1_wbc_agile_pink'
+```
+
+Unos 12 min por sesión de 25. Después, los vídeos para revisarlo a ojo — salen del HDF5, sin
+arrancar el simulador:
+
+```bash
+python3 train/scripts/hdf5_to_video.py \
+  ~/datasets/isaaclab_arena/g1_valve/sesion_02_office.hdf5 --n 25 \
+  --outdir ~/eval/videos/sesion_02_office
+```
+
+Lo que hay que saber:
+
+- **`unset OFFICE_GS_LIGHT`.** Por defecto son 3000 y así se generó todo el dataset. Ponerlo a
+  otro valor en una sesión y no en otra parte el dataset en dos exposiciones distintas.
+- **El script impone el estado grabado en cada paso**, no reproduce en lazo abierto. Sin eso la
+  copia *no reproduce la demo*: las piernas las lleva AGILE en lazo cerrado y se vuelven a
+  ejecutar, así que la trayectoria se desvía desde el paso 1. Medido: 9 de 25 dejaban de abrir
+  la válvula, la peor pasaba de 191° a 114°. Con el forzado, 50/50 y 1,1° de diferencia máxima.
+  `--libre` vuelve al comportamiento antiguo, solo para comparar.
+- **El éxito se recalcula sobre la reproducción**, no se copia del original.
+- `--device cpu` **no** funciona aquí: se cuelga. Da igual, porque con el estado forzado la
+  física ya no decide el resultado.
+- El HDF5 de salida ocupa ~2× el de entrada (la oficina comprime peor).
+
+---
+
 ## Parar todo
 
 ```bash
 docker exec isaaclab_arena-latest bash -c \
-  'pkill -9 -f teleop.py; pkill -9 -f record_demos.py; pkill -9 -f stream_valve.py; pkill -9 -f isaacteleop'
+  'pkill -9 -f teleop.py; pkill -9 -f record_demos.py; pkill -9 -f stream_valve.py; pkill -9 -f rerender_demos.py; pkill -9 -f isaacteleop'
 ```
 
 Los procesos corren como `root` dentro del contenedor: un `pkill` desde el host da
