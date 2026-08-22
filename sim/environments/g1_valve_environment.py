@@ -458,6 +458,37 @@ class G1ValveEnvironment(ExampleEnvironmentBase):
                     "layout_fijo": VALVE_LAYOUT_FIJA,
                 },
             )
+            # EVALUACION: grabar tambien estado y acciones, no solo las metricas.
+            #
+            # Por defecto Arena deja en `recorders` unicamente `success_rate` y
+            # `revolute_joint_moved_rate`, asi que el HDF5 que escribe `policy_runner.py` trae el
+            # exito y la trayectoria de apertura, pero NO la pose inicial de la valvula. Sin ella
+            # no se puede separar la tasa de exito por disposicion, que es la grafica que dice si
+            # la politica generaliza a las dos o solo resuelve una.
+            #
+            # Se anade `ActionStateRecorderManagerCfg` (initial_state + actions + states) y NO
+            # `ArenaEnvRecorderManagerCfg`, que ademas mete las camaras: en 100 rollouts eso son
+            # ~19 GB de imagenes que no hacen falta para las metricas. Los videos salen de una
+            # tirada corta aparte, con `--video`.
+            if os.environ.get("ARENA_EVAL_RECORD", "") == "1":
+                from isaaclab.envs.mdp.recorders.recorders_cfg import ActionStateRecorderManagerCfg
+
+                previos = env_cfg.recorders
+                grabadores = ActionStateRecorderManagerCfg()
+                # Conservar los terminos de metrica y la configuracion de exportacion que Arena
+                # ya habia puesto; sustituirlos a ciegas perderia el calculo de las metricas.
+                for _campo in (
+                    "success_rate",
+                    "revolute_joint_moved_rate",
+                    "dataset_export_dir_path",
+                    "dataset_filename",
+                    "dataset_export_mode",
+                ):
+                    if hasattr(previos, _campo):
+                        setattr(grabadores, _campo, getattr(previos, _campo))
+                env_cfg.recorders = grabadores
+                print("[arena] ARENA_EVAL_RECORD: se graban initial_state, actions y states")
+
             return env_cfg
 
         if VALVE_LAYOUT_FIJA:
