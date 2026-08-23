@@ -356,6 +356,37 @@ def tabla(datos, salida):
             celdas.append(f"{sum(1 for d in sub if d['exito'])}/{len(sub)}" if sub else "—")
         lineas.append(f"| {n} | {len(r)} | **{p:.0%}** ({k}/{len(r)}) | {lo:.0%}–{hi:.0%} | "
                       f"{movio:.0%} | {ang:.0f}° | {celdas[0]} | {celdas[1]} |")
+    if len(datos) == 2 and len({len(r) for r in datos.values()}) == 1:
+        g, ac = (datos[k] for k in datos)
+        pares = list(zip(g, ac))
+        solo_1 = sum(1 for x, y in pares if x["exito"] and not y["exito"])
+        solo_2 = sum(1 for x, y in pares if y["exito"] and not x["exito"])
+        ambos = sum(1 for x, y in pares if x["exito"] and y["exito"])
+        ninguna = len(pares) - ambos - solo_1 - solo_2
+        n = solo_1 + solo_2
+        from math import comb
+        if n:
+            pk = comb(n, solo_1) / 2 ** n
+            pv = min(1.0, sum(comb(n, i) / 2 ** n for i in range(n + 1)
+                              if comb(n, i) / 2 ** n <= pk + 1e-15))
+        else:
+            pv = 1.0
+        nombres_2 = list(datos)
+        lineas += [
+            "",
+            "## Comparacion emparejada (McNemar)",
+            "",
+            "Las dos politicas ven las MISMAS condiciones iniciales, asi que el test valido es el",
+            "emparejado: solo los casos discordantes llevan informacion.",
+            "",
+            f"| | {nombres_2[1]} acierta | {nombres_2[1]} falla |",
+            "|---|---|---|",
+            f"| **{nombres_2[0]} acierta** | {ambos} | **{solo_1}** |",
+            f"| **{nombres_2[0]} falla** | **{solo_2}** | {ninguna} |",
+            "",
+            f"McNemar exacto sobre {n} discordantes: **p = {pv:.4f}** "
+            f"({'SIGNIFICATIVO' if pv < 0.05 else 'NO significativo'} al 5 %)",
+        ]
     texto = "\n".join(lineas)
     with open(os.path.join(salida, "resultados.md"), "w") as fh:
         fh.write("# Resultados: ACT contra GR00T en `g1_valve`\n\n" + texto + "\n")
@@ -364,20 +395,32 @@ def tabla(datos, salida):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--gr00t", help="HDF5 de metricas de la evaluacion de GR00T")
-    p.add_argument("--act", help="HDF5 de metricas de la evaluacion de ACT")
+    p.add_argument("--gr00t", nargs="*", default=[],
+                   help="uno o mas HDF5 de metricas de GR00T; se agrupan")
+    p.add_argument("--act", nargs="*", default=[],
+                   help="uno o mas HDF5 de metricas de ACT; se agrupan")
     p.add_argument("--dir_gr00t", default="", help="directorio de salida del fine-tune de GR00T")
     p.add_argument("--log_act", default="", help="registro de entrenamiento de ACT")
     p.add_argument("--salida", default="/eval/figuras")
     a = p.parse_args()
 
     datos = {}
-    for nombre, ruta in (("GR00T", a.gr00t), ("ACT", a.act)):
-        if ruta and os.path.isfile(ruta):
-            datos[nombre] = lee_rollouts(ruta)
-            print(f"{nombre}: {len(datos[nombre])} rollouts leidos de {ruta}")
-        else:
-            print(f"{nombre}: sin HDF5 de metricas, se omite")
+    for nombre, rutas in (("GR00T", a.gr00t), ("ACT", a.act)):
+        acumulado = []
+        for i, ruta in enumerate(rutas):
+            if os.path.isfile(ruta):
+                bloque = lee_rollouts(ruta)
+                # El indice de episodio se reinicia en cada fichero; se le suma el bloque para
+                # que al emparejar con la otra politica no se solapen tiradas distintas.
+                for d in bloque:
+                    d["bloque"] = i
+                acumulado += bloque
+                print(f"{nombre}: {len(bloque)} rollouts de {os.path.basename(ruta)}")
+            else:
+                print(f"{nombre}: no existe {ruta}, se omite")
+        if acumulado:
+            datos[nombre] = acumulado
+            print(f"{nombre}: {len(acumulado)} rollouts en total")
 
     os.makedirs(a.salida, exist_ok=True)
     if a.dir_gr00t or a.log_act:
