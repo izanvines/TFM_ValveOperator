@@ -612,9 +612,40 @@ Two traps in implementing it:
   uniform than the documented asymmetry — but the gesture must not change mid-dataset, or
   "closed" ends up encoded two contradictory ways.
 
+### 2026-08-22: 100 demos, both policies trained, and the first comparison that means anything
+
+Sessions 04 and 05 recorded, so the definitive dataset is **100 demos** — and the layout split
+came out at exactly **50 frontal / 50 cenital** without anyone forcing it. Re-rendered 100/100
+with the office, merged into `valve_100.hdf5`, converted, verified (0 failures).
+
+| | success over 100 rollouts | frontal | cenital |
+|---|---|---|---|
+| **GR00T N1.7** | **91 %** (84–95) | 37/37 | 54/63 |
+| **ACT** | **83 %** (74–89) | 36/37 | 47/63 |
+
+**The 91-vs-83 gap is NOT significant** (z = 1.68, p = 0.093) — do not write "GR00T beats ACT"
+off this. What *is* significant is the layout: both policies are clearly worse overhead
+(Fisher p = 0.024 for GR00T, p = 0.0045 for ACT), which matches everything else measured about
+that layout. `revolute_joint_moved_rate` is 100 % for both, so it does not discriminate here:
+every failure is "did not finish half a turn", never "never found the valve".
+
+Full write-up, with what to do next, in [`docs/resultados_100demos.md`](docs/resultados_100demos.md).
+Figures in `~/eval/figuras/`, policy videos in `~/eval/videos/politicas/`.
+
+Two operational lessons from the unattended run:
+
+- **`docker exec` without `-d` dies with its client.** A 12-minute re-render launched from a
+  shell that then closed stopped at 7 of 25. Long jobs go through
+  `sim/scripts/pipeline_valve_100.sh` (container, `-d`) and the host drivers under `setsid`,
+  each writing a per-stage sentinel so a rerun skips what is done.
+- **Evaluate with the background the policy was trained on.** The images come from the office
+  re-render, so evaluation runs `--background office_gs` with `OFFICE_GS_LIGHT` unset.
+
 ### Still open
 
-1. Record the remaining demos toward 400 (50 done), re-rendering each session as it lands.
+1. Record the remaining demos toward 400 (100 done), re-rendering each session as it lands.
+   Consider 40/60 in favour of the overhead layout: the dataset is balanced but the results say
+   that half is the hard one.
 2. Freeze or drop the locomotion dims `[16:19]` before the GR00T conversion — 8 of 23 dims still
    have std = 0.
 3. ~~`--device cpu` is not honoured during the re-render.~~ Still true — the env cfg comes up

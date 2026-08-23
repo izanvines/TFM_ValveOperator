@@ -152,8 +152,12 @@ docker exec isaaclab_arena-latest bash -c 'cd /workspaces/isaaclab_arena && unse
    g1_valve --embodiment g1_wbc_agile_joint --background none'
 ```
 
-- **`OFFICE_GS_LIGHT=1500` no es opcional**: por defecto vale 3000 y las demos se grabaron a 1500.
-  Sería el doble de luz sobre la única entrada visual de la política.
+- **`OFFICE_GS_LIGHT` depende de con qué se entrenó.** Esta línea del ensayo evaluaba en
+  diáfano (`--background none`), donde la variable es **inerte**: sólo se lee en el camino NuRec
+  (`g1_valve_environment.py:326`). Desde el dataset de 100 demos las imágenes salen del
+  **re-render con la oficina**, generado con la variable **sin definir** (3000), así que se evalúa
+  con `--background office_gs` y sin tocarla. Ponerla a 1500 ahí le daría a la política la mitad
+  de luz que en entrenamiento, sobre su única entrada visual.
 - **`--embodiment g1_wbc_agile_joint`**, no el de grabación. Con `g1_wbc_agile_pink` sale
   `Invalid action shape, expected: 23, received: 50`.
 - **`--language_instruction`** con la cadena de `tasks.jsonl`, no la del entorno

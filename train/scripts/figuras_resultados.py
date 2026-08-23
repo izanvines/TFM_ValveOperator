@@ -183,9 +183,12 @@ def figura_perdida(dir_gr00t, log_act, salida):
         else:
             ax.set_title(f"{nombre} — sin datos", color=TINTA_3, loc="left")
             ax.set_xticks([]); ax.set_yticks([])
-    fig.suptitle("Convergencia del entrenamiento", x=0.09, ha="left", fontsize=12,
+    # `bbox="tight"` recorta al contenido, asi que el titulo general y el pie hay que
+    # separarlos a mano o pisan el titulo del panel y las etiquetas del eje.
+    fig.suptitle("Convergencia del entrenamiento", x=0.09, y=1.10, ha="left", fontsize=12,
                  fontweight="bold", color=TINTA)
-    fig.text(0.09, -0.06,
+    fig.subplots_adjust(wspace=0.28)
+    fig.text(0.09, -0.20,
              "La pérdida es un error de regresión contra las acciones del operador: que baje "
              "significa que la red copia bien\nlas demostraciones, no que el robot abra la "
              "válvula. La evidencia de aprendizaje es la tasa de éxito (figura 2).",
@@ -209,8 +212,10 @@ def _barras_agrupadas(ax, grupos, nombres, valores, errores, etiquetas_n=None):
         ax.errorbar(pos, valores[n], yerr=errores[n], fmt="none", ecolor=TINTA_2,
                     elinewidth=1.2, capsize=4, zorder=4)
         for j, (xp, h) in enumerate(zip(pos, valores[n])):
-            ax.text(xp, h + 0.03, f"{h:.0%}", ha="center", va="bottom", color=TINTA,
-                    fontsize=9.5, fontweight="bold")
+            # Por encima del extremo de la barra de error, no de la barra: con intervalos
+            # anchos la etiqueta caia justo encima del bigote y se leian mal las dos cosas.
+            ax.text(xp, h + errores[n][1][j] + 0.025, f"{h:.0%}", ha="center", va="bottom",
+                    color=TINTA, fontsize=9.5, fontweight="bold")
             if etiquetas_n:
                 ax.text(xp, 0.02, f"n={etiquetas_n[n][j]}", ha="center", va="bottom",
                         color="white", fontsize=8)
@@ -231,8 +236,8 @@ def figura_exito(datos, salida):
             k = sum(1 for d in datos[n] if d[clave])
             p, lo, hi = wilson(k, len(datos[n]))
             valores[n].append(p)
-            errores[n][0].append(p - lo)
-            errores[n][1].append(hi - p)
+            errores[n][0].append(max(0.0, p - lo))
+            errores[n][1].append(max(0.0, hi - p))
 
     fig, ax = plt.subplots(figsize=(6.6, 4.2))
     _limpia(ax)
@@ -301,16 +306,16 @@ def figura_disposicion(datos, salida):
             k = sum(1 for d in sub if d["exito"])
             p, lo, hi = wilson(k, len(sub))
             alturas.append(p)
-            err[0].append(p - lo)
-            err[1].append(hi - p)
+            err[0].append(max(0.0, p - lo))
+            err[1].append(max(0.0, hi - p))
             etiquetas_n.append(len(sub))
         pos = x + (i - (len(nombres) - 1) / 2) * (ancho + 0.02)
         ax.bar(pos, alturas, ancho, color=COLOR[n], edgecolor="none", zorder=3, label=n)
         ax.errorbar(pos, alturas, yerr=err, fmt="none", ecolor=TINTA_2, elinewidth=1.2,
                     capsize=4, zorder=4)
-        for xp, h, nn in zip(pos, alturas, etiquetas_n):
-            ax.text(xp, h + 0.035, f"{h:.0%}", ha="center", va="bottom", color=TINTA,
-                    fontsize=9.5, fontweight="bold")
+        for j, (xp, h, nn) in enumerate(zip(pos, alturas, etiquetas_n)):
+            ax.text(xp, h + err[1][j] + 0.025, f"{h:.0%}", ha="center", va="bottom",
+                    color=TINTA, fontsize=9.5, fontweight="bold")
             ax.text(xp, 0.02, f"n={nn}", ha="center", va="bottom", color="white", fontsize=8)
     ax.set_xticks(x)
     ax.set_xticklabels(["frontal\n(volante de frente)", "cenital\n(volante hacia arriba)"],
