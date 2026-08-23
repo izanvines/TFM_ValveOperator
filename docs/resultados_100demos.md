@@ -44,20 +44,38 @@ error de copiar al operador, no de abrir la válvula.
 | **GR00T** | **91 %** (91/100) | 84 – 95 % | 100 % | 176° |
 | **ACT** | **83 %** (83/100) | 74 – 89 % | 100 % | 172° |
 
+### La comparación está EMPAREJADA
+
+Las dos evaluaciones corrieron con `--seed 42`, y comprobado sobre las poses iniciales grabadas:
+**las 100 condiciones son idénticas**, con diferencia máxima de 0,000000 m. Cada política se
+enfrentó exactamente a la misma válvula, en la misma posición, en el mismo orden.
+
+Es una propiedad del diseño que conviene decir en la memoria: elimina la duda de si una de las
+dos tuvo tiradas más fáciles por azar. Y obliga a usar el test emparejado, no el de dos
+proporciones independientes.
+
+|  | ACT acierta | ACT falla |
+|---|---|---|
+| **GR00T acierta** | 76 | **15** |
+| **GR00T falla** | **7** | 2 |
+
+Sólo los 22 casos discordantes llevan información: en 15 acierta GR00T y falla ACT, en 7 al revés.
+
+```
+McNemar exacto sobre 22 discordantes:  p = 0,134   ->  NO significativo
+```
+
 ### La diferencia entre las dos NO es significativa
 
-Es lo primero que hay que decir, porque el titular engaña:
+Ocho puntos con 100 tiradas **no permiten afirmar que GR00T sea mejor**, ni con el test
+emparejado ni con el independiente (que daría p = 0,093, pero es el test equivocado aquí).
+Escribir "GR00T supera a ACT" con estos datos sería una conclusión que el dato no sostiene.
 
-```
-91/100 contra 83/100   z = 1,68   p = 0,093   ->  NO significativo
-```
-
-Ocho puntos de diferencia con 100 tiradas cada una **no permiten afirmar que GR00T sea mejor**.
-Los intervalos se solapan (84–95 contra 74–89). Escribir "GR00T supera a ACT" con estos datos
-sería una conclusión que el propio dato no sostiene.
-
-Para resolverlo harían falta unos **140 rollouts por política** si las tasas reales son las
+Para resolverlo harían falta unos **140–160 rollouts por política** si las tasas reales son las
 observadas. Es media hora más de máquina por política, y no requiere grabar nada.
+
+Un detalle que sí es limpio: **sólo 2 de los 100 episodios los fallan las dos**, y los dos son
+cenitales.
 
 ### Lo que SÍ es significativo: la disposición
 

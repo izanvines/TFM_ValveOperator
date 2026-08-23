@@ -623,8 +623,10 @@ with the office, merged into `valve_100.hdf5`, converted, verified (0 failures).
 | **GR00T N1.7** | **91 %** (84–95) | 37/37 | 54/63 |
 | **ACT** | **83 %** (74–89) | 36/37 | 47/63 |
 
-**The 91-vs-83 gap is NOT significant** (z = 1.68, p = 0.093) — do not write "GR00T beats ACT"
-off this. What *is* significant is the layout: both policies are clearly worse overhead
+Both evaluations ran with `--seed 42` and the recorded initial poses are **identical to 0.000000 m**,
+so this is a *paired* comparison — neither policy got easier draws. The paired table is
+76 both / 15 GR00T only / 7 ACT only / 2 neither, and **the gap is NOT significant**
+(exact McNemar over the 22 discordant cases, p = 0.134) — do not write "GR00T beats ACT" off this. What *is* significant is the layout: both policies are clearly worse overhead
 (Fisher p = 0.024 for GR00T, p = 0.0045 for ACT), which matches everything else measured about
 that layout. `revolute_joint_moved_rate` is 100 % for both, so it does not discriminate here:
 every failure is "did not finish half a turn", never "never found the valve".
