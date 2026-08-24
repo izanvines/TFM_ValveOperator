@@ -618,18 +618,36 @@ Sessions 04 and 05 recorded, so the definitive dataset is **100 demos** — and 
 came out at exactly **50 frontal / 50 cenital** without anyone forcing it. Re-rendered 100/100
 with the office, merged into `valve_100.hdf5`, converted, verified (0 failures).
 
-| | success over 100 rollouts | frontal | cenital |
-|---|---|---|---|
-| **GR00T N1.7** | **91 %** (84–95) | 37/37 | 54/63 |
-| **ACT** | **83 %** (74–89) | 36/37 | 47/63 |
+Evaluated over **200 rollouts per policy** (two blocks of 100, seeds 42 and 7; the second block
+was added on 2026-08-24):
 
-Both evaluations ran with `--seed 42` and the recorded initial poses are **identical to 0.000000 m**,
-so this is a *paired* comparison — neither policy got easier draws. The paired table is
-76 both / 15 GR00T only / 7 ACT only / 2 neither, and **the gap is NOT significant**
-(exact McNemar over the 22 discordant cases, p = 0.134) — do not write "GR00T beats ACT" off this. What *is* significant is the layout: both policies are clearly worse overhead
-(Fisher p = 0.024 for GR00T, p = 0.0045 for ACT), which matches everything else measured about
-that layout. `revolute_joint_moved_rate` is 100 % for both, so it does not discriminate here:
-every failure is "did not finish half a turn", never "never found the valve".
+| | success over 200 rollouts | frontal | cenital |
+|---|---|---|---|
+| **GR00T N1.7** | **92 %** (185/200, 88–95) | 84/84 | 101/116 |
+| **ACT** | **86 %** (172/200, 81–90) | 83/84 | 89/116 |
+
+Within each block both policies faced **identical** initial conditions (recorded valve poses agree
+to 0.000000000 m), so this is a *paired* comparison and the two blocks are genuinely different
+draws, which is what makes pooling them legitimate. Paired table:
+160 both / 25 GR00T only / 12 ACT only / 3 neither.
+
+```
+exact McNemar over 37 discordant:  p = 0.047
+```
+
+**That crosses 0.05 by a single episode and is fragile** — 24–13 would give p = 0.099, 25–13 would
+give p = 0.073. Write "GR00T is consistently ahead in both blocks and the difference approaches
+significance (p = 0.047)", never "GR00T is significantly better than ACT". With 100 rollouts the
+same comparison gave p = 0.134.
+
+What *is* significant, with a wide margin, is the **layout**: both policies are clearly worse
+overhead (Fisher p = 0.00021 for GR00T, p = 0.0000018 for ACT). And that is where the whole
+policy gap lives — **36 of the 37 discordant cases are cenital**; frontal is saturated (84/84 vs
+83/84, one discordant case). Restricted to cenital, McNemar is 24–12, p = 0.065. The defensible
+claim is "GR00T holds up somewhat better on the hard layout", not "GR00T is better".
+
+`revolute_joint_moved_rate` is 100 % for both across all 400 rollouts, so it does not discriminate
+here: every failure is "did not finish half a turn", never "never found the valve".
 
 Full write-up, with what to do next, in [`docs/resultados_100demos.md`](docs/resultados_100demos.md).
 Figures in `~/eval/figuras/`, policy videos in `~/eval/videos/politicas/`.
@@ -646,8 +664,10 @@ Two operational lessons from the unattended run:
 ### Still open
 
 1. Record the remaining demos toward 400 (100 done), re-rendering each session as it lands.
-   Consider 40/60 in favour of the overhead layout: the dataset is balanced but the results say
-   that half is the hard one.
+   **Go 40/60 in favour of the overhead layout** — the dataset is balanced 50/50 but that half
+   carries 97 % of the failures, and two tests at p < 0.001 back it. Do *not* spend more machine
+   time raising the rollout count to chase the policy-gap p-value: with 200 paired rollouts the
+   difference is known to be small, and settling it would need far more samples than it is worth.
 2. Freeze or drop the locomotion dims `[16:19]` before the GR00T conversion — 8 of 23 dims still
    have std = 0.
 3. ~~`--device cpu` is not honoured during the re-render.~~ Still true — the env cfg comes up
