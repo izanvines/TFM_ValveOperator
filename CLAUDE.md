@@ -668,8 +668,11 @@ Two operational lessons from the unattended run:
    carries 97 % of the failures, and two tests at p < 0.001 back it. Do *not* spend more machine
    time raising the rollout count to chase the policy-gap p-value: with 200 paired rollouts the
    difference is known to be small, and settling it would need far more samples than it is worth.
-2. Freeze or drop the locomotion dims `[16:19]` before the GR00T conversion — 8 of 23 dims still
-   have std = 0.
+2. Freeze or drop the locomotion dims `[16:19]` before the GR00T conversion. Measured over the
+   definitive 100-demo dataset on 2026-08-24: **6 of 23 dims have std = 0** — `[16,17,18]`
+   locomotion and `[20,21,22]` torso. Not 8: the hands `[0,1]` moved once recording switched to
+   grasping, so that figure came from `sesion_01`. `[19]` base_height is nearly dead too
+   (std ~1e-4). Figure: `docs/figuras/fig7_std_espacio_accion.pdf`.
 3. ~~`--device cpu` is not honoured during the re-render.~~ Still true — the env cfg comes up
    `cuda:0` whatever you pass — but it stopped mattering once the state is forced, since the
    physics no longer decides the outcome. Do **not** try to fix it by passing `--device cpu`:

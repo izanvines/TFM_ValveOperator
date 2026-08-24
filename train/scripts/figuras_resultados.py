@@ -326,10 +326,12 @@ def figura_disposicion(datos, salida):
     ax.set_title("¿Generaliza a las dos disposiciones?", loc="left", fontsize=12,
                  fontweight="bold", color=TINTA, pad=14)
     ax.legend(loc="upper right", ncol=2)
+    # El pie decia "se sortea 50/50" a secas y justo debajo se leen n=84 y n=116: parecia una
+    # contradiccion. Lo 50/50 es el SORTEO; el reparto observado es el que salio de el.
     fig.text(0.02, -0.04,
-             "La disposición se sortea 50/50 en cada reset, igual que durante la grabación. "
-             "Una diferencia grande\nentre las dos columnas dice qué hay que grabar más, no que "
-             "la política sea mala.",
+             "La disposición se sortea al 50 % en cada reset, igual que durante la grabación; la "
+             "n bajo cada barra es\nel reparto que salió del sorteo. Una diferencia grande entre "
+             "las dos columnas dice qué hay que grabar más,\nno que la política sea mala.",
              ha="left", fontsize=8.5, color=TINTA_2)
     _guarda(fig, salida, "fig4_exito_por_disposicion")
 
