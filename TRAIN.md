@@ -389,6 +389,54 @@ es exactamente por lo que `act_remote_policy.py` lo comprueba al arrancar y se n
 
 ---
 
+## 6. Los dos experimentos derivados (curva de eficiencia y latencia)
+
+Los dos van encadenados en **`sim/scripts/noche_final.sh`**, que se lanza con `setsid`, deja un
+centinela por etapa en `~/eval/logs/noche_*.ok` y por tanto se puede relanzar sin repetir lo hecho.
+La noche entera son ~6 h 40 en una sola GPU.
+
+**Subconjuntos de datos.** `train/scripts/subset_lerobot.py` saca subconjuntos **estratificados por
+disposición y anidados**, con semilla fija:
+
+```bash
+D=~/datasets/isaaclab_arena/g1_valve
+python3 train/scripts/subset_lerobot.py \
+    --src  $D/valve_100/lerobot \
+    --dest $D/valve_25/lerobot \
+    --n 25 --seed 0 --layouts $D/valve_100/layouts.json
+```
+
+`--layouts` es un JSON con una `'F'`/`'C'` por episodio, en el orden del dataset: es lo que
+permite estratificar. Sale del cuaternión de `initial_state/articulation/valve/root_pose` en el
+HDF5 —frontal lleva una componente ~0,707, cenital tiene las cuatro a 0,5— y el de las 100 ya
+está calculado en `~/datasets/isaaclab_arena/g1_valve/valve_100/layouts.json`.
+
+Estratificar no es cosmético: las sesiones 02–03 se escoran a cenital (19F/31C), así que «las
+primeras 25» mezclarían menos datos con más disposición difícil y la curva caería por el motivo
+equivocado. El guion **reescribe el parquet** en vez de enlazarlo —cada fila lleva `episode_index`
+y un `index` global que hay que renumerar—, enlaza los mp4 **con rutas relativas** (una absoluta a
+`~/datasets` no resuelve dentro del contenedor) y deja constancia en `meta/subset_provenance.json`.
+Después, por subconjunto: `stats.py` de GR00T y `make_lerobot_act_view.py` para ACT, **calculadas
+sobre el subconjunto**, nunca heredadas de las 100. Y pasar `verify_lerobot_dataset.py` antes de
+entrenar: la renumeración es justo donde puede romperse.
+
+**Latencia.** `train/scripts/latencia_wrapper.py` cronometra `get_action` sin tocar Arena,
+aprovechando que `--policy_type` acepta cualquier ruta de importación:
+
+```bash
+--policy_type latencia_wrapper.Gr00tCronometrado    # o ActCronometrado
+```
+
+con `LATENCIA_OUT=<fichero>.jsonl` y `PYTHONPATH` apuntando a `train/scripts`. **La subclase tiene
+que redefinir `from_args`**: en las dos clases base es un `@staticmethod` que instancia la clase
+base a pelo, así que sin ese `classmethod` el runner sirve la política sin cronometrar y no te
+enteras. Descarta la primera medida de cada política (485 ms GR00T, 198 ms ACT): es compilación de
+kernels.
+
+Las figuras salen de `train/scripts/figuras_eficiencia.py`, con el intérprete del contenedor.
+
+---
+
 ## Parar todo
 
 ```bash

@@ -661,18 +661,69 @@ Two operational lessons from the unattended run:
 - **Evaluate with the background the policy was trained on.** The images come from the office
   re-render, so evaluation runs `--background office_gs` with `OFFICE_GS_LIGHT` unset.
 
+### 2026-08-25: the data-efficiency curve is flat, and latency rules nothing out
+
+The last free-GPU night trained both policies on **stratified, nested subsets** of the same 100
+demos (12F/13C and 25F/25C, fixed seed) and evaluated all six over the **same** 100 initial
+conditions (seed 42), so the only variable between points is how much data there is:
+
+| | 25 demos | 50 demos | 100 demos |
+|---|---|---|---|
+| **GR00T** | **93 %** | 91 % | 91 % |
+| **ACT** | 84 % | 91 % | 83 % |
+
+**No within-policy difference is significant** (paired McNemar, worst p = 0.115). The expected
+VLA advantage — pulling ahead when data is scarce — **does not appear**: GR00T is at 93 % with 25
+demos and does not improve, and ACT's 84 → 91 → 83 has no trend. Each point is **one training
+run**, so that wiggle is confounded with seed variance; say "the curve is flat", never "ACT gets
+worse with more data".
+
+The useful consequence is negative and it changes the plan: the remaining 8–15 % of failure is
+**not a data-quantity problem**, so recording toward 400 demos with the same 50/50 split would
+not have fixed it. Frontal is saturated at 25 demos already (GR00T 37/37 at all three points);
+all the variation lives in cenital. That is the second independent argument for the 40/60 split.
+
+Do not take "the first 25" or "the first 50" as subsets: sessions 02–03 skew cenital (19F/31C),
+so an unstratified subset confounds *less data* with *more of the hard layout*.
+`train/scripts/subset_lerobot.py` does the stratification — and it **rewrites** the parquet
+rather than symlinking it, because each row carries `episode_index` and a global `index` that
+have to be renumbered. Videos are symlinked, and **relatively**: an absolute link into `~/datasets`
+does not resolve inside the container, where the verifier runs.
+
+**Latency, measured in closed loop** (`train/scripts/latencia_wrapper.py`, 10 rollouts each,
+`torch.cuda.synchronize()` both sides — not a synthetic tensor):
+
+| | median | p95 | max | first call | budget margin |
+|---|---|---|---|---|---|
+| **GR00T N1.7** | 53 ms | 58 ms | 133 ms | 485 ms | ×15 |
+| **ACT** | 5.2 ms | 5.5 ms | 6.8 ms | 198 ms | ×154 |
+
+The budget is **800 ms** — one chunk per 40 steps at 50 Hz. **None of the 226 measurements
+exceeds it.** The 61× parameter gap costs 10× in latency and both still fit with room to spare, so
+latency is not an argument against the VLA here. Discard each policy's first call: it is kernel
+compilation.
+
+`--policy_type` taking any dotted import path is what makes the timing wrapper possible without
+touching Arena. One trap: both remote-policy base classes define `from_args` as a `@staticmethod`
+that hardcodes the base class, so a subclass **must** override it or the runner instantiates the
+base and measures nothing.
+
 ### Still open
 
-1. Record the remaining demos toward 400 (100 done), re-rendering each session as it lands.
-   **Go 40/60 in favour of the overhead layout** — the dataset is balanced 50/50 but that half
-   carries 97 % of the failures, and two tests at p < 0.001 back it. Do *not* spend more machine
-   time raising the rollout count to chase the policy-gap p-value: with 200 paired rollouts the
-   difference is known to be small, and settling it would need far more samples than it is worth.
+1. If more demos get recorded, **go 40/60 in favour of the overhead layout** — that half
+   carries 97 % of the failures (two tests at p < 0.001), and the flat efficiency curve
+   (2026-08-25) shows more data of the *same* composition changes nothing. Recording toward 400
+   is otherwise **no longer the priority**: the binding constraint is the memoria, not the data.
+   Do *not* spend machine time raising the rollout count to chase the policy-gap p-value; with
+   200 paired rollouts the difference is known to be small. If a GPU night does come free, spend
+   it on **several training seeds per point** of the efficiency curve, which is what actually
+   limits it.
 2. Freeze or drop the locomotion dims `[16:19]` before the GR00T conversion. Measured over the
    definitive 100-demo dataset on 2026-08-24: **6 of 23 dims have std = 0** — `[16,17,18]`
    locomotion and `[20,21,22]` torso. Not 8: the hands `[0,1]` moved once recording switched to
    grasping, so that figure came from `sesion_01`. `[19]` base_height is nearly dead too
-   (std ~1e-4). Figure: `docs/figuras/fig7_std_espacio_accion.pdf`.
+   (std ~1e-4). Figure: `docs/figuras/fig7_std_espacio_accion.pdf`. Not being touched before the
+   deadline: it would add a new variable to a closed experiment.
 3. ~~`--device cpu` is not honoured during the re-render.~~ Still true — the env cfg comes up
    `cuda:0` whatever you pass — but it stopped mattering once the state is forced, since the
    physics no longer decides the outcome. Do **not** try to fix it by passing `--device cpu`:

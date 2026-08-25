@@ -4,7 +4,7 @@ Primera comparación que significa algo. El ensayo del 19–20 de agosto usó 25
 disposición, sin agarre y con la misma condición inicial siempre: las dos políticas dieron 10/10
 porque el problema era trivial. Esto es otra cosa.
 
-**Fecha:** 2026-08-22, ampliado el 2026-08-24 · **Dataset:** `valve_100` ·
+**Fecha:** 2026-08-22, ampliado el 2026-08-24 y el 2026-08-25 · **Dataset:** `valve_100` ·
 **Evaluación:** **200 rollouts por política**
 
 ---
@@ -137,36 +137,121 @@ Eso hace que la métrica sea inútil **para esta comparación** —no separa nad
 resultado: las dos políticas han aprendido a aproximarse y agarrar, y lo que les falta es
 completar el giro.
 
+## Eficiencia en datos: 25, 50 y 100 demostraciones
+
+Añadido el 2026-08-25. Se reentrenaron las dos políticas sobre subconjuntos **estratificados**
+del mismo dataset y se evaluaron las seis con las **mismas** 100 condiciones iniciales
+(semilla 42), así que lo único que cambia entre puntos es la cantidad de datos.
+
+| | 25 demos | 50 demos | 100 demos |
+|---|---|---|---|
+| **GR00T** | **93 %** (86–97) | 91 % (84–95) | 91 % (84–95) |
+| **ACT** | 84 % (76–90) | 91 % (84–95) | 83 % (75–89) |
+
+Estratificados quiere decir 12F/13C y 25F/25C, sorteados con semilla fija y **anidados**. No es
+un detalle: las sesiones 02 y 03 se escoraron a cenital (19F/31C), así que coger «las primeras
+50» habría mezclado *menos datos* con *más cenitales* y la curva habría caído por el motivo
+equivocado — la disposición, no la cantidad.
+
+### La curva es plana, y eso responde a la pregunta
+
+La hipótesis era la que justifica usar un modelo fundacional: que GR00T se despegara con pocas
+demostraciones y ACT necesitara más. **No ocurre.** Ninguna diferencia dentro de una misma
+política es significativa:
+
+```
+GR00T  @25 vs @100   7 / 5    p = 0,77
+GR00T  @50 vs @100   6 / 6    p = 1,00
+ACT    @25 vs @100  13 / 12   p = 1,00
+ACT    @50 vs @100  15 / 7    p = 0,13     (cenital solo: p = 0,12)
+```
+
+Y entre políticas, en cada punto: p = 0,078 con 25, p = 1,00 con 50, p = 0,134 con 100. En el
+punto de 50 empatan exactamente (91 % las dos, 6 discordantes en cada sentido).
+
+Tres lecturas, en orden de solidez:
+
+1. **Con esta tarea, 25 demostraciones ya saturan lo que el tamaño del dataset puede dar.**
+   Cuadruplicar los datos no mueve la tasa de éxito de ninguna de las dos. Es un resultado
+   negativo, y es el más útil del experimento: dice que el 8–15 % de fallo que queda **no es un
+   problema de cantidad de datos**, así que grabar hacia 400 demostraciones con el mismo reparto
+   no lo habría arreglado.
+2. **Lo que sí importa es la composición.** El panel derecho de la figura 8 lo enseña: en frontal
+   GR00T hace 37/37 en los tres puntos y ACT 34–36/37, o sea saturado desde 25 demos; toda la
+   variación vive en cenital. Refuerza la recomendación de grabar 40/60 a favor de la cenital,
+   que ahora se apoya en dos argumentos independientes.
+3. **GR00T aguanta mejor con pocos datos, pero no se puede afirmar.** 93 % contra 84 % con 25
+   demos es la mayor separación de los tres puntos y va en la dirección esperada — pero p = 0,078
+   y con 50 demos el orden se invierte al empate. Es una tendencia, no un hallazgo.
+
+**Aviso obligatorio al leer esta figura:** cada punto es **un único entrenamiento**, así que la
+variación entre puntos mezcla el efecto de los datos con la varianza de semilla del
+entrenamiento. El sube-y-baja de ACT (84 → 91 → 83) es casi con seguridad ruido de entrenamiento,
+no una relación real con el tamaño del dataset; para separarlas harían falta varias semillas por
+punto, que a estas alturas del calendario no cabían. Escrito así en el pie de la figura.
+
+## Latencia de inferencia
+
+El otro eje donde 3,14 B contra 51,7 M tiene que notarse. Medida **en lazo cerrado dentro del
+simulador** con `train/scripts/latencia_wrapper.py`, no con un tensor sintético: 10 tiradas por
+política, cronometrando `get_action` en el servidor con `torch.cuda.synchronize()` a los dos
+lados.
+
+| | mediana | p95 | máximo | 1.ª llamada | margen |
+|---|---|---|---|---|---|
+| **GR00T N1.7** | **53 ms** | 58 ms | 133 ms | 485 ms | ×15 |
+| **ACT** | **5,2 ms** | 5,5 ms | 6,8 ms | 198 ms | ×154 |
+
+El presupuesto son **800 ms**: el cliente pide un chunk cada 40 pasos y el entorno corre a 50 Hz.
+**Ninguna de las 226 medidas se sale**, ni el máximo de GR00T. La primera llamada de cada política
+se descarta porque es compilación de kernels.
+
+Conclusión práctica: los **61× de diferencia en parámetros cuestan 10× en latencia**, y aun así
+las dos caben con muchísima holgura. La latencia **no es un argumento contra el VLA en esta
+tarea**. Dicho lo cual, esto se mide con el servidor solo en una RTX PRO 6000 de 96 GB: en un
+robot real, con más carga en la misma GPU y un enlace de red por medio, los 53 ms son el suelo,
+no el techo.
+
 ## Figuras
 
-En `~/eval/figuras/`, en PNG a 300 ppp y PDF vectorial, regeneradas sobre las 200 tiradas:
+Versionadas en **[`docs/figuras/`](figuras/)**, en PDF vectorial y PNG a 300 ppp, listas para
+`\includegraphics`. Se generan en `~/eval/figuras/` con tres guiones:
 
-| | |
-|---|---|
-| `fig1_curvas_perdida` | convergencia de las dos, en paneles separados |
-| `fig2_tasa_exito` | tasa de éxito con intervalos de Wilson |
-| `fig3_distribucion_angulo` | hasta dónde llega el volante, con el umbral marcado |
-| `fig4_exito_por_disposicion` | frontal contra cenital — **la figura con el resultado** |
+| figura | guion | qué enseña |
+|---|---|---|
+| `fig1_curvas_perdida` | `figuras_resultados.py` | convergencia de las dos, en paneles separados |
+| `fig2_tasa_exito` | ” | tasa de éxito con intervalos de Wilson |
+| `fig3_distribucion_angulo` | ” | hasta dónde llega el volante, con el umbral marcado |
+| `fig4_exito_por_disposicion` | ” | frontal contra cenital — **la figura con el resultado** |
+| `fig5_reparto_disposiciones` | `figuras_dataset.py` | cómo se repartió el sorteo por sesión |
+| `fig6_duracion_episodios` | ” | duración de las 100 demostraciones |
+| `fig7_std_espacio_accion` | ” | **las 6 dimensiones de acción con std = 0** |
+| `fig8_curva_eficiencia` | `figuras_eficiencia.py` | 25/50/100 demos, total y solo cenital |
+| `fig9_latencia` | ” | ms por chunk contra el presupuesto de 800 ms |
 
 Vídeos de 5 rollouts por política, tercera persona y con el fondo de oficina, en
 `~/eval/videos/politicas/{gr00t,act}/`.
 
 ## Qué hacer con esto
 
-1. **Grabar más cenitales.** Es la conclusión fuerte de todo el experimento: el dataset está
-   50/50 y esa mitad concentra el 97 % de los fallos. Un reparto 40/60 a favor de la cenital en
-   las sesiones que quedan ataca directamente el punto débil, y está respaldado por dos tests con
-   p < 0,001.
-2. **Curva de eficiencia de datos** (25, 50, 100 demos). Es donde el VLA debería separarse del
-   método clásico, y las sesiones ya están en ficheros separados, así que no hay que grabar nada.
-   Si GR00T se despega con 25 demos y empata con 100, ése es el argumento real a favor del modelo
-   fundacional — mucho más fuerte que 6 puntos al límite de la significación.
-3. **Latencia de inferencia** por política, que es el otro eje donde 3,14 B contra 51,7 M tiene
-   que notarse y todavía no está medido.
+De los tres puntos que había aquí el 22 de agosto, **dos están hechos** y su respuesta está arriba:
+la curva de eficiencia sale plana y la latencia no descarta a ninguna de las dos. Queda uno, y ha
+salido reforzado:
+
+1. **Grabar más cenitales.** Es la conclusión fuerte de todo el experimento, y ahora se apoya en
+   dos argumentos independientes: el dataset está 50/50 y esa mitad concentra el 97 % de los
+   fallos (dos tests con p < 0,001), y además **la curva de eficiencia demuestra que más datos
+   del mismo tipo no arreglan nada**. Un reparto 40/60 a favor de la cenital en lo que quede de
+   grabación ataca lo único que sí está limitando el resultado.
+2. **Si sobrara máquina, varias semillas por punto antes que más rollouts.** La curva está
+   limitada por tener un solo entrenamiento por punto, no por el número de tiradas de evaluación.
+3. **Congelar las 6 dimensiones muertas** (`[16:19]` navegación y `[20:22]` torso) sigue
+   pendiente. A una semana del cierre no se toca: introduciría una variable nueva en un
+   experimento que ya está cerrado, y al menos ahora está documentado en la figura 7.
 
 No merece la pena seguir subiendo rollouts para exprimir el p de la comparación entre políticas:
 la diferencia real es pequeña, y con 200 emparejados ya se sabe que hace falta muchísima más
-muestra para asentarla. El esfuerzo rinde más en los tres puntos de arriba.
+muestra para asentarla.
 
 ## Aviso al leer la tasa de éxito
 
