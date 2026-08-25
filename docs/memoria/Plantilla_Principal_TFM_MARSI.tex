@@ -1,0 +1,613 @@
+%%% Documento tipo para trabajos en LaTeX.
+%%% Copyleft: Jesús Balsa, Juan F. García.
+
+
+% Tipo de documento:
+\documentclass[12pt,a4paper,onecolumn,oneside]{report}
+\newcommand{\mychapter}[2]{
+	\setcounter{chapter}{#1}
+	\setcounter{section}{0}
+	\chapter*{#2}
+	\addcontentsline{toc}{chapter}{#2}
+}
+
+
+
+% Opcional: Tamaño personalizado para los márgenes:
+\usepackage[a4paper, top=3cm, bottom=3cm, left=3cm, right=3cm]{geometry}
+
+\usepackage[utf8]{inputenc} % Codificación UTF-8.
+\usepackage[T1]{fontenc}    % Para usar caracteres con tilde.
+\usepackage[spanish,es-tabla]{babel} % Escritura en castellano.
+\usepackage{eurosym}  % Para el símbolo del EURO (€).
+\usepackage{graphicx} % Paquete de imágenes, para introducir figuras.
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+\usepackage[usenames,dvipsnames]{color} % Texto en colores.
+\usepackage{xcolor}   % Extra colors.
+\usepackage{url}      % Para escritura de URLs.
+\usepackage[breaklinks]{hyperref} % Hiperreferencias.
+\usepackage{amsmath,amssymb} % Para los símbolos matemáticos.
+\usepackage{cite}     % Para las citas de referencias (crea el superíndice).
+\usepackage{listings} % Para coloreado de código fuente.
+\usepackage{verbatim} % Para textos tipo consola y otros formatos.
+\usepackage{fancyvrb} % Más opciones de verbatim.
+\usepackage{parskip}  % OPCIONAL: Separa los párrafos con una línea en blanco.
+\setlength{\parindent}{15pt} % Sangría de párrafos estándar (15 puntos). Necesario incluirla si se usa el paquete 'parskip'.
+\usepackage[export]{adjustbox}
+\usepackage{caption}  % Para personalizar los pies de foto.
+
+% Opciones del paquete caption para los pies de imágenes y tablas:
+\captionsetup{figurename=Figura, tablename=Tabla, labelsep=colon, labelfont=bf, font=small, justification=centering}
+
+% Para el control de líneas viudas y huérfanas (líneas sueltas en páginas nuevas):
+\usepackage[all]{nowidow}
+
+\usepackage[nottoc]{tocbibind}    % Incluye el apartado "Referencias" en el índice.
+%\def\spanishrefname{Bibliografía} % Para que ponga "Bibliografía" en lugar de "Referencias". SÓLO se aplica a formato "article". En "report" ya pone "Bibliografía".
+
+\usepackage{fancyhdr}
+
+
+\setlength{\unitlength}{1 cm} % Unidad de trabajo de medidas.
+
+\renewcommand*{\baselinestretch}{1.25} % Altura del INTERLINEADO.
+\renewcommand{\shorthandsspanish}{}    % Para que corte las palabras según el castellano.
+
+
+% Propiedades para el PDF generado (METADATOS):
+\newcommand{\authorNames}{Nombre y apellidos del autor}
+\newcommand{\pdftitle}{Título del trabajo}
+\hypersetup{
+  pdftitle={\pdftitle},% Título
+  pdfauthor={\authorNames},% Autor
+  pdfsubject={\pdftitle \ - \authorNames},% Asunto
+% pdfkeywords={Opcional: algunas palabras clave}%
+}
+
+% Para la representación de código fuente:
+% Para BASH:
+\lstset{
+	language=bash,
+	basicstyle=\scriptsize,
+	frame=single,
+	numbers=left,
+	numberstyle=\scriptsize,
+	stepnumber=1,
+	numbersep=9pt,
+	backgroundcolor=\color{White},
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	tabsize=4,
+	captionpos=b,
+	breaklines=true,
+	keywordstyle=\color{blue}\bfseries,
+	%identifierstyle=\color{green}\bfseries,
+	stringstyle=\color{orange}\bfseries,
+	commentstyle=\color{gray}\bfseries
+}
+% Para C++:
+%\lstset{
+%	language=C++,
+%	frame=single,
+%	keywordstyle=\color{Green}\bfseries,
+%	identifierstyle=\color{BlueViolet},
+%	stringstyle=\color{Red},
+%	commentstyle=\color{MidnightBlue}
+%}
+
+\usepackage{fancyhdr} % Para el tamaño y estilo de los encabezados.
+
+\fancypagestyle{headings}{% Redefine el estilo "headings".
+	\fancyhf{} % Clear all header and footer fields.
+	\lhead{\small \it Máster Universitario en Investigación en Ciberseguridad} 
+	\rhead{\small \it Página \thepage}      % Nº de página a la derecha. Tamaño "small".
+	\renewcommand{\headrulewidth}{1pt}
+}
+
+% Ajustes para división manual de palabras:
+\hyphenation{Python} % Impide que la palabra Python sea dividida al acabar una línea.
+
+
+
+%%%%%% INICIO DEL DOCUMENTO: %%%%%%
+
+\begin{document}
+
+\input{Plantillas/Plantilla_Portada}
+
+
+% Página de FIRMAS:
+\newpage
+
+\thispagestyle{empty} % para que no se numere esta página.
+
+\input{Plantillas/Plantilla_Firmas}
+
+\newpage
+\pagestyle{plain}
+
+\renewcommand{\thepage}{\roman{page}}
+\setcounter{page}{1} % Esta página es la 1.
+
+
+% Página con el ÍNDICE GENERAL
+\tableofcontents
+
+% Página con el ÍNDICE DE FIGURAS
+\listoffigures
+
+% Página con el ÍNDICE DE TABLAS
+\listoftables
+
+% Página con el GLOSARIO:
+\mychapter{0}{Glosario de términos}
+\label{chap:glosario}
+% A partir de aquí ya se incluye el encabezado en las páginas:
+\pagestyle{headings}
+
+% Al ser un capítulo sin número, hay que indicarle qué título añadir al encabezado de la página:
+\markboth{GLOSARIO}{} 
+
+
+
+Catálogo de términos específicos del contexto del trabajo.
+
+
+\begin{description}
+	
+	\item[ciberseguridad]: Protección de los sistemas informáticos y de sus redes de comunicaciones, con el objetivo de mantener segura la información que procesan.
+	
+	\item[DES]: Data Encryption Standard. Es un algoritmo criptográfico, de tipo cifrado por bloque.
+	
+	
+\end{description} 
+
+%%%% Inicio de los CAPÍTULOS %%%%
+\newpage
+\renewcommand{\thepage}{\arabic{page}}
+\setcounter{page}{1} % Esta página es la 1.
+
+\mychapter{0}{Introducción}
+\label{Introducción}
+
+La extensión total de la memoria, excluyendo índices y anexos, será de unas CIEN páginas y en ningún caso superará las CIENTO VEINTE páginas.
+
+El capítulo de introducción tendrá una extensión aproximada de cinco páginas. El objetivo del capítulo es presentar el trabajo realizado y el contenido del documento.
+
+No se deberá superar el tercer nivel al hacer apartados numerados.
+
+
+Ejemplo de cita\cite{fernandez2019grupo}.
+
+
+\section*{Planteamiento del problema}
+
+\section*{Objetivos}
+
+
+
+\section*{Metodología}
+
+
+
+\section*{Estructura del trabajo}
+
+
+%*********************************************
+
+\chapter*{Ejemplos de uso de LaTeX (QUITAR DE LA MEMROIA)}
+\label{Ejemplos de uso de LaTeX}
+
+\section*{Ejemplo de uso de notas al pie}
+\label{Seguridad general}
+
+El término \emph{seguridad informática} abarca muchos aspectos, y dar una definición de manera genérica es complejo. Debe poderse aplicar a cualquier tipo de sistema informático, y al mismo tiempo describir qué se entiende por seguridad.
+
+Aunque existen diferentes definiciones según la fuente, a continuación se presentan algunos enunciados concisos:
+
+\begin{itemize}
+
+\item ``Es la protección de los datos, de las redes y del suministro eléctrico de un sistema informático.''\footnote{\textit{Definition of computer security.} Encyclopedia. Ziff Davis, PCMag. \url{http://www.pcmag.com/encyclopedia/term/44958/information-security}}
+
+\item ``Disciplina que se ocupa de diseñar normas, procedimientos y técnicas, destinados a conseguir que un sistema de información sea seguro.''\footnote{\url{https://es.wikipedia.org/wiki/Seguridad_informática}\label{segWiki}}
+
+\item ``Área de la informática enfocada en la protección de las infraestructuras computacionales y, especialmente, de la información contenida o que circula por ellas.''\textsuperscript{\ref{segWiki}}
+
+\end{itemize}
+ 
+
+\section*{Ejemplo de imagen}
+
+Existen tres requisitos fundamentales a tener en cuenta de cara a proteger la información que procesan los sistemas informáticos.
+Se trata de: \textit{confidencialidad}, \textit{integridad} y \textit{disponibilidad}. Estos conceptos se refieren al uso, transferencia y almacenamiento de los datos, respectivamente.
+
+En la figura \ref{fig:fundamentos-seguridad} puede verse un esquema con los tres requisitos mencionados.
+
+\begin{figure}[htb] 
+\centering
+  \includegraphics[width=.55\textwidth]{figuras/c-i-a.png}
+  \caption[Elementos principales de seguridad de la información]{Elementos principales de seguridad de la información\\
+  \footnotesize{Fuente: \textit{http://geraintw.blogspot.com.es/2012/09/cia-infosec.html}}}
+  \label{fig:fundamentos-seguridad}
+\end{figure}
+
+
+\section*{Ejemplo de lista con números}
+
+\begin{enumerate}
+
+\item Confidencialidad:\\
+El principio de confidencialidad consiste en asegurar que la información es accesible sólo para aquellos destinatarios que estén autorizados, con independencia de dónde se almacene la información.
+La confidencialidad de los datos se implementa mediante mecanismos de control de acceso, tanto físicos (hardware) como  de programación (software).
+
+\item Integridad:\\
+La integridad de los datos se refiere a garantizar el estado de la información, protegiéndola de cambios accidentales o malintencionados. Mantener la integridad es esencial para la privacidad, la seguridad y la fiabilidad de los datos almacenados en un sistema.
+Las medidas que se utilizan para mitigar posibles fallos en los datos incluyen: copias de seguridad regulares, almacenamiento seguro de esas copias fuera del lugar de trabajo y herramientas de control de integridad.
+
+\item Disponibilidad:\\
+La disponibilidad de los datos tiene como objetivo que los usuarios autorizados tengan acceso a la información en el momento que la necesiten. Esto implica garantizar el correcto funcionamiento de los equipos utilizados para almacenar y procesar los datos, de los controles de seguridad para protegerlos, y de los canales de comunicación utilizados para acceder a ellos.
+
+\end{enumerate}
+
+
+\section*{Una tabla con varias cabeceras}
+\label{Ciberseguridad robótica}
+
+La tabla~\ref{tabla1} extiende a los robots sociales y asistenciales la clasificación de criticidad para sistemas industriales, propuesta en \cite{CSSP}.
+
+\begin{table*}[ht]
+	\centering
+	\caption{Perfiles de seguridad asociados a la robótica}
+	\label{tabla1}
+	\begin{tabular}{|l|ccc|}
+		\cline{2-4}
+		\multicolumn{1}{c}{} & \multicolumn{3}{|c|}{Criticidad} \\
+		\cline{1-4}
+		\multicolumn{1}{|c|}{Perfil} &  Confidencialidad & Integridad & Disponibilidad \\ \hline
+		Estación de trabajo (PC) & Alta & Alta 	&  Baja \\
+		Equipo para control industrial & Baja & Media & Muy alta \\
+		Robots asistenciales & Muy alta & Muy alta & Muy alta \\
+		Robots sociales & Muy alta & Media & Baja \\ \hline
+	\end{tabular}
+\end{table*}
+
+
+\section*{Descripción de ROS: Robot Operating System}
+\label{ROS}
+
+Vistazo general sobre ROS:\\
+- Historia y versión actual.\\
+- Aplicación: investigación y también robots comerciales.\\
+- Arquitectura: componentes básicos y funcionamiento.
+
+
+\section*{Ejemplo de código fuente}
+
+\vspace{0.5cm}  % Añado espacio vertical extra para separar el código del título de la sección.
+
+\begin{lstlisting}
+#!/bin/bash
+
+# VARIABLES GLOBALES:
+
+BASHRC_FILE="$HOME/.bashrc"
+HOST_VAR_NAME="ROS_HOSTNAME"
+MASTER_VAR_NAME="ROS_MASTER_URI"
+ROS_PORT="11311"
+HOST_IP=""    # Se asigna por parametro.
+MASTER_IP=""  # Se asigna por parametro.
+FILENAME="$(basename $0)"
+
+# FUNCIONES:
+
+description() {
+if [ $1 -ne 0 ]; then
+echo -e "\n  ========"
+fi
+echo -e "\n  This script adds or modifies $HOST_VAR_NAME and $MASTER_VAR_NAME variables"
+echo -e "    in the '~/.bashrc' file of current user.\n"
+}
+\end{lstlisting}
+
+
+
+%*********************************************
+
+\chapter{Estudio del problema}
+\label{Estudio del problema}
+
+Se presenta el contexto de realización del trabajo realizando una revisión de las tecnologías, plataformas, herramientas o trabajos previos realizados en el mismo. Extensión aproximada de veinte páginas.
+
+\section{El contexto del problema}
+
+Breve descripción del contexto de realización del trabajo. Sirve para situar al lector.
+
+
+\section{El estado de la cuestión}
+
+Revisión de los trabajos existentes.
+
+\section{La definición del problema}
+
+Descripción del problema que ha motivado nuestro trabajo. Redactar en lenguaje sencillo y enumerando, de manera explícita, las limitaciones encontradas.
+
+\section{Normativa asociada}
+
+Enumeración y descripción de la normativa, ISOs afectados por un proyecto de este tipo.
+
+
+\chapter{Gestión de proyecto software}
+\label{Gestión de proyecto software}
+
+Realizar una simulación de la gestión del proyecto software desarrollo. La gestión simulará un proyecto real, realizado con las condiciones habituales del entorno empresarial. El objetivo del capítulo es plasmar los conocimientos adquiridos a lo largo de la titulación y no la forma en la cual se ha gestionado el Trabajo Fin de Máster. Extensión máxima de veinte páginas.
+
+\section{Alcance del proyecto}
+\label{Alcance del proyecto}
+
+\subsection{Definición del proyecto}
+
+\subsection{Estimación de tareas y recursos}
+
+\subsection{Presupuesto}
+
+A continuación se detalla un presupuesto estimado para el coste total de este proyecto.
+
+\subsubsection{Coste de personal}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Presupuesto de personal}
+	\label{tabla2}
+	\makebox[\textwidth]{  % Para centrar una tabla más ancha que la página definida.
+		\begin{tabular}{|c|c|c|c|c|}
+			\cline{1-5}
+			Tarea &	Perfil & Horas & Euros/Hora  &  Total\\ \hline
+			Desarrollo aplicación &	Programador Junior & 80 & 60 & 4800 \euro\\
+			Integración en entorno robótico & Programador Senior & 20 & 100 & 2000 \euro\\
+			Pruebas & Ingeniero de Pruebas & 20 & 80 & 1600 \euro\\
+			Supervisión del Proyecto & Jefe de Proyecto & 10 & 120 & 1200 \euro\\ \hline\hline
+			\multicolumn{4}{|c|}{Total} & \multicolumn{1}{c|}{10100 \euro}\\ \hline
+		\end{tabular}
+	}
+\end{table*}
+
+
+\subsubsection{Coste del hardware}
+
+Para la realización de este proyecto se ha realizado la compra de:
+
+\begin{enumerate}
+	
+	\item Ordenador con Intel i7:
+	
+	Placa base: MSI GE62 6QF-060ES Heroes Ed.
+	
+	Procesador: Intel i7-6700HQ
+	
+	RAM: 16 GB
+	
+	Disco duro: 1TB + 128GB SSD
+	
+	Tarjeta gráfica: Nvidia GTX970M
+	
+	Monitor: 15.6"
+	
+	\begin{itemize}
+		\item Precio (sin IVA): 986,71 \euro\\
+	\end{itemize}
+	
+	\item Ordenador con Intel Atom:
+	
+	Asus Transformer Book H100TAM DK028B
+	
+	RAM: 32GB
+	
+	Disco duro: 500GB
+	
+	\begin{itemize}
+		\item Precio (sin IVA): 260,27 \euro
+	\end{itemize}
+	
+\end{enumerate}
+
+
+\subsubsection{Coste total}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Presupuesto total}
+	\label{tabla3}
+	\makebox[\textwidth]{  % Para centrar una tabla ancha.
+		\begin{tabular}{|l|l|}
+			\cline{1-2}
+			Concepto &	Coste (Euros) \\ \hline
+			Costes de personal & 10100  \\
+			Costes de hardware  & 1246,98   \\ \hline
+			Subtotal  &  11346,97 \\
+			IVA (21\%) & 2882,86 \\ \hline \hline
+			Total Proyecto & \textbf{13729,83 \euro} \\ \hline
+	\end{tabular}}
+\end{table*}
+
+\section{Plan de trabajo}
+\label{Plan de trabajo}
+
+
+\subsection{Identificación de tareas}
+
+\subsection{Estimación de tareas}
+
+\subsection{Planificación de tareas}
+
+
+
+\section{Gestión de recursos}
+
+\subsection{Especificación de recursos}
+
+\subsection{Asignación de recursos}
+
+
+
+
+\section{Gestión de riesgos}
+
+\subsection{Identificación de riesgos}
+
+\subsection{Análisis de riesgos}
+
+
+
+\chapter{Solución}
+\label{Solución}
+
+Explicación de la solución llevada a cabo. Si se trata de un desarrollo se incidirá en el proceso de desarrollo; en otro caso, se justificará y describirá la solución propuesta. El capítulo tendrá una extensión aproximada de cuarenta páginas y, en ningún caso, excederá las cincuenta.
+
+\section{Descripción de la solución}
+
+Breve descripción del tipo de solución adoptada: si es una aplicación y qué características tiene, si se trata de un tutorial, un modelo, etc.
+
+
+\section{El proceso de desarrollo}
+
+Explicar el modelo de proceso y la estructura de la sección.
+
+\subsection{Análisis}
+
+Fase de análisis
+
+
+\subsubsection{Definición de requisitos}
+
+Enumerar los requisitos del sistema dividiéndoles en funcionales y no funcionales.
+
+\subsubsection{Especificación de requisitos}
+
+Analizar y especificar los requisitos desde el punto de vista del comportamiento, estructura y funcionalidad del sistema.
+
+
+\subsection{Diseño}
+
+Fase de diseño
+
+\subsubsection{Diseño de sistema}
+
+Se expone la ARQUITECTURA del sistema y las TECNOLOGÍAS utilizadas en el desarrollo.
+
+\subsubsection{Diseño detallado}
+
+Se describe el diseño de las capas de PERSISTENCIA, MODELO e INTERFAZ del sistema.
+
+
+\subsection{Implementación}
+
+Hablar de las HERRAMIENTAS utilizadas durante el desarrollo, la ORGANIZACIÓN del proyecto y aquellas peculiaridades de la forma de implementación.
+
+\subsection{Pruebas}
+
+Centrarse en pruebas unitarias (no incluir todas las pruebas sino informes de las mismas) y de sistema (mostrar que cumple los casos de uso).
+
+
+\section{El producto del desarrollo}
+
+En el caso de desarrollar una herramienta es necesario mostrar, brevemente, el tipo de herramienta generada. Incluir algún pantallazo de la herramienta, su funcionalidad y la forma de ejecución de la misma.
+
+\chapter{Evaluación}
+\label{Evaluación}
+
+
+Demostración de la validez de la solución elaborada. La solución se considera válida si resuelve los problemas expuestos en el planteamiento del problema y satisface los objetivos definidos en la introducción. Según el caso la forma de evaluación se basará en la ejecución de casos de prueba o en la realización de cuestionarios. Extensión entre quince y veinte páginas.
+
+\section{Proceso de evaluación}
+
+\subsection{Forma de evaluación}
+
+Explicar la forma en la cual se ha evaluado la aplicación
+
+\subsection{Casos de prueba}
+
+Casos de pruebas realizados
+
+\section{Análisis de resultados}
+
+
+
+\mychapter{1}{Conclusión}
+
+Expresión personal del conjunto de conclusiones que, a juicio del autor, se derivan de los resultados expuestos en el trabajo.Deberá tener una extensión entre cinco y diez páginas.
+
+\subsection*{Aportaciones realizadas}
+
+
+
+\subsection*{Trabajos futuros}
+
+
+
+\subsection*{Problemas encontrados}
+
+
+
+\section*{Opiniones personales}
+
+
+
+%%%% BIBLIOGRAFÍA %%%%
+\renewcommand\bibname{Lista de referencias}
+
+%\bibliography{Refs-proyecto}    % Fichero con las referencias.
+Información bibliográfica citada en el texto del trabajo. Otras lecturas recomendadas o consultadas, de figurar, aparecerán en anexos.
+Se debe seguir la norma ISO 690 (buscar en google ISO 690 ugr)
+
+% % También se puede optar por incluir las referencias desde aquí mismo:
+% \begin{thebibliography}{1}
+	
+
+	
+
+% \bibitem{CSSP}
+% {CSSP, D.}:
+% \newblock \textit{Recommended Practice: Improving Industrial Control Systems
+%   Cybersecurity with Defense-In-Depth Strategies}.
+% \newblock US-CERT Defense In Depth. (Octubre 2009)
+
+% \end{thebibliography}
+
+
+\bibliography{referencias}
+\bibliographystyle{unsrt} %plain %apalike
+
+
+%%%% ANEXOS %%%%
+\renewcommand{\appendixname}{Anexo}
+\appendix
+
+\chapter{Control de versiones}
+\label{Control de versiones}
+
+
+
+
+\chapter{Seguimiento de proyecto fin de máster}
+\label{Seguimiento de proyecto fin de máster}
+
+
+Obligatorio. Seguimiento del trabajo real.
+
+\section{Forma de seguimiento}
+
+\section{Planificación inicial}
+
+\section{Planificación final}
+Si el trabajo ha consistido en la elaboración de una aplicación se incluirá el manual de usuario de la misma.
+
+
+\chapter{Cuestionario de evaluación}
+\label{Cuestionario de evaluación}
+
+Cuestionarios utilizados durante la fase de evaluación.
+
+
+
+\end{document}
