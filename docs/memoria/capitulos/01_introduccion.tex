@@ -1,0 +1,136 @@
+\mychapter{0}{Introducción}
+\label{Introducción}
+
+Los robots humanoides han pasado en pocos años de ser plataformas de investigación costosas y
+frágiles a productos comerciales con un precio comparable al de un vehículo industrial. En paralelo,
+el aprendizaje de políticas de manipulación a partir de demostraciones humanas ha desplazado en
+buena medida a la programación explícita de trayectorias. La confluencia de ambas líneas plantea una
+pregunta práctica que este trabajo aborda de forma acotada y medible: cuando se dispone de un
+conjunto de demostraciones de una tarea industrial concreta, ¿compensa emplear un modelo fundacional
+de gran tamaño, o basta con una arquitectura clásica de imitación entrenada desde cero?
+
+Este Trabajo de Fin de Máster responde a esa pregunta sobre una tarea única y bien delimitada —la
+apertura de una válvula de volante mediante el humanoide Unitree G1, íntegramente en simulación—
+comparando dos métodos entrenados sobre exactamente el mismo conjunto de datos y evaluados en
+exactamente las mismas condiciones.
+
+
+\section*{Planteamiento del problema}
+
+En las instalaciones del sector del petróleo y el gas, la operación manual de válvulas de volante es
+una tarea rutinaria, físicamente exigente y a menudo situada en zonas clasificadas como atmósferas
+potencialmente explosivas. Es, por su naturaleza repetitiva y por el riesgo asociado al entorno, una
+de las candidatas naturales a la automatización mediante robots móviles de propósito general. Sin
+embargo, se trata de una tarea que resiste mal el enfoque clásico de programar la trayectoria: la
+válvula puede estar montada en cualquier orientación, el volante exige un agarre firme y un giro
+sostenido, y la reacción del mecanismo se propaga por los brazos hasta comprometer el equilibrio del
+robot.
+
+El aprendizaje por imitación ofrece una alternativa. En lugar de describir cómo debe moverse el
+robot, se le muestra la tarea un cierto número de veces y se ajusta una política que reproduzca ese
+comportamiento. El coste se traslada entonces de la ingeniería de la trayectoria a la recogida de
+demostraciones, que en el caso de un humanoide de veintinueve grados de libertad no es trivial.
+
+Dentro de ese marco conviven hoy dos aproximaciones de naturaleza muy distinta. Por un lado, los
+modelos visión-lenguaje-acción (VLA), que parten de un modelo fundacional preentrenado sobre
+grandes volúmenes de datos heterogéneos y se ajustan a la tarea concreta; NVIDIA GR00T
+\cite{nvidia2025gr00t} es un exponente reciente orientado específicamente a humanoides. Por otro,
+las arquitecturas de imitación específicas, entrenadas desde cero sobre los datos de la tarea, de
+las que ACT \cite{zhao2023aloha} es probablemente la más extendida. La diferencia de escala entre
+ambas es de casi dos órdenes de magnitud en número de parámetros.
+
+La literatura ofrece abundantes resultados de cada familia por separado, pero comparaciones
+rigurosas entre ambas sobre una misma tarea, un mismo conjunto de datos y un mismo criterio de
+éxito son escasas. Y sin esa comparación, la decisión de qué método emplear en un despliegue
+concreto se toma sobre intuiciones acerca del tamaño del modelo, no sobre evidencia.
+
+
+\section*{Objetivos}
+
+El objetivo general del trabajo es \textbf{cuantificar, sobre una tarea de manipulación industrial
+representativa y en igualdad de condiciones, la diferencia de rendimiento entre un modelo
+visión-lenguaje-acción y una política de imitación clásica}.
+
+De él se derivan los siguientes objetivos específicos:
+
+\begin{enumerate}
+
+	\item Construir un entorno de simulación reproducible de la tarea, con el humanoide Unitree G1
+	y una válvula procedente de un modelo CAD real, que sirva a la vez para grabar demostraciones y
+	para evaluar políticas con un criterio de éxito objetivo.
+
+	\item Recoger un conjunto de demostraciones teleoperadas con variabilidad suficiente para que
+	la tarea no sea memorizable, incluyendo dos disposiciones distintas de la válvula y
+	aleatorización de su posición.
+
+	\item Establecer una única cadena de conversión que alimente a ambos métodos desde el mismo
+	fichero de demostraciones, de modo que ninguna diferencia observada pueda atribuirse al
+	tratamiento de los datos.
+
+	\item Entrenar y evaluar las dos políticas, y contrastar sus tasas de éxito con la prueba
+	estadística adecuada a un diseño de medidas emparejadas.
+
+	\item Caracterizar el coste de cada método en los dos ejes que condicionan un despliegue real:
+	la cantidad de demostraciones necesaria y la latencia de inferencia frente al presupuesto de
+	tiempo del lazo de control.
+
+\end{enumerate}
+
+
+\section*{Metodología}
+
+El trabajo sigue una metodología experimental comparativa, articulada en cuatro etapas encadenadas:
+teleoperación y grabación, conversión del conjunto de datos, entrenamiento y evaluación. El diseño
+descansa sobre tres decisiones que condicionan la validez de las conclusiones y que conviene
+adelantar aquí.
+
+\textbf{Un único conjunto de datos para ambos métodos.} El formato de conjunto de datos de GR00T es
+un superconjunto del formato LeRobot que consume ACT, de modo que una sola conversión sirve a los
+dos entrenamientos. Cualquier diferencia de resultado procede, por tanto, del método y no de una
+preparación distinta de los datos.
+
+\textbf{Un único banco de evaluación.} Ambas políticas se sirven como procesos independientes que
+implementan el mismo protocolo de comunicación con el simulador. El comando que lanza la evaluación
+es idéntico hasta el último carácter para las dos; lo único que cambia es qué proceso atiende la
+petición. Esto elimina toda una clase de diferencias espurias derivadas del montaje experimental.
+
+\textbf{Comparación emparejada.} Las dos políticas se evalúan sobre las mismas condiciones iniciales,
+generadas con la misma semilla, de manera que cada episodio constituye un par. El contraste
+estadístico apropiado es entonces la prueba exacta de McNemar sobre los casos discordantes, no una
+comparación de proporciones independientes, que desperdiciaría la información del emparejamiento y
+sobreestimaría la incertidumbre.
+
+Sobre esa base se realizan tres experimentos: la comparación principal sobre doscientas tiradas por
+política, una curva de eficiencia en datos con subconjuntos estratificados de veinticinco, cincuenta
+y cien demostraciones, y una medida de latencia de inferencia en lazo cerrado.
+
+Todo el desarrollo se ha realizado en simulación. No se ha dispuesto de acceso a un robot físico, lo
+que constituye la principal limitación del trabajo y se discute explícitamente en el capítulo de
+evaluación.
+
+
+\section*{Estructura del trabajo}
+
+El resto de la memoria se organiza como sigue.
+
+El capítulo \ref{Estudio del problema}, \textit{Estudio del problema}, sitúa el trabajo en su
+contexto industrial y tecnológico, revisa el estado de la cuestión en aprendizaje por imitación,
+modelos visión-lenguaje-acción, simulación robótica y teleoperación, delimita el problema concreto
+que se aborda y recoge la normativa aplicable a un sistema de estas características.
+
+El capítulo \ref{Gestión de proyecto software}, \textit{Gestión de proyecto software}, presenta la
+simulación de la gestión del proyecto en condiciones de entorno empresarial: alcance, estimación,
+presupuesto, planificación, recursos y riesgos.
+
+El capítulo \ref{Solución}, \textit{Solución}, describe el sistema construido: la arquitectura, el
+diseño de la tarea de simulación, la cadena de datos, los dos entrenamientos y las pruebas
+realizadas sobre cada eslabón.
+
+El capítulo \ref{Evaluación}, \textit{Evaluación}, expone el protocolo experimental y analiza los
+resultados obtenidos, con especial atención a qué afirmaciones sostienen los datos y cuáles no.
+
+El capítulo de \textit{Conclusión} recoge las aportaciones del trabajo, los problemas encontrados y
+las líneas de continuación.
+
+Cierran el documento tres anexos: el control de versiones del proyecto, el seguimiento real del
+Trabajo de Fin de Máster y el protocolo de evaluación empleado.

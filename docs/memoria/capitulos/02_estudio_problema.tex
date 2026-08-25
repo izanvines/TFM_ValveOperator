@@ -1,0 +1,116 @@
+\chapter{Estudio del problema}
+\label{Estudio del problema}
+
+Este capítulo sitúa el trabajo. Comienza describiendo el contexto industrial que motiva la tarea y
+la plataforma robótica elegida, revisa después el estado de la cuestión en las cuatro áreas que el
+trabajo cruza —aprendizaje por imitación, modelos fundacionales para robótica, simulación y
+teleoperación—, delimita a continuación el problema concreto que se aborda y termina recogiendo la
+normativa aplicable a un sistema de estas características.
+
+
+\section{El contexto del problema}
+
+\subsection{La operación de válvulas en instalaciones de proceso}
+
+Descripción de la tarea real: qué es una válvula de compuerta de volante, dónde aparece en una
+instalación de proceso, por qué su accionamiento sigue siendo manual y qué riesgos conlleva. Se
+justifica aquí la elección de la tarea: es repetitiva, está bien definida, tiene un criterio de
+éxito objetivo y se realiza en entornos donde la presencia humana es costosa o peligrosa.
+
+\subsection{Robots humanoides como plataforma de intervención}
+
+Por qué un humanoide y no un manipulador sobre base móvil. El argumento se apoya en que la
+instalación está diseñada para el cuerpo humano —alturas, pasillos, escaleras, el propio diámetro
+del volante— y en la caída de precio de las plataformas comerciales. Se presenta el Unitree G1 y sus
+características relevantes para la tarea.
+
+\subsection{Por qué el trabajo se realiza en simulación}
+
+Justificación metodológica y práctica: la evaluación estadística exige centenares de repeticiones
+con condiciones iniciales controladas, algo inviable sobre hardware físico en el plazo de un TFM.
+Se discute también qué se pierde por ello y cómo se ha intentado mitigar.
+
+
+\section{El estado de la cuestión}
+
+\subsection{Aprendizaje por imitación}
+
+Recorrido desde la clonación de comportamiento clásica \cite{pomerleau1988alvinn} hasta los métodos
+modernos, pasando por el problema de la deriva de distribución y las respuestas propuestas
+\cite{ross2011dagger}. Se establece aquí el vocabulario que el resto de la memoria emplea.
+
+\subsection{Políticas de manipulación entrenadas desde cero}
+
+ACT \cite{zhao2023aloha} y su idea central de predecir bloques de acciones en lugar de acciones
+aisladas, y Diffusion Policy \cite{chi2023diffusion} como alternativa generativa. Se explica por qué
+ACT es el representante elegido para el brazo clásico de la comparación.
+
+\subsection{Modelos visión-lenguaje-acción}
+
+De RT-1 \cite{brohan2022rt1} y RT-2 \cite{brohan2023rt2} a OpenVLA \cite{kim2024openvla} y
+$\pi_0$ \cite{black2024pi0}. Qué aporta el preentrenamiento a gran escala, qué promete en términos
+de generalización y qué cuesta en cómputo.
+
+\subsection{GR00T y el control de humanoides}
+
+El modelo empleado en el trabajo \cite{nvidia2025gr00t}: arquitectura de dos sistemas, generación de
+acciones por \textit{flow matching} y mecanismo de adaptación a nuevos \textit{embodiments}. Se
+describe también la capa de control de cuerpo completo sobre la que se apoya la manipulación.
+
+\subsection{Entornos de simulación y formatos de conjuntos de datos}
+
+Isaac Sim, Isaac Lab \cite{mittal2023orbit} e Isaac Lab Arena como pila empleada; alternativas
+consideradas y descartadas. El formato LeRobot \cite{cadene2024lerobot} como denominador común entre
+ambos métodos, y el papel de iniciativas de agregación de datos como Open X-Embodiment
+\cite{oxe2023}.
+
+\subsection{Teleoperación en realidad mixta}
+
+Captura de movimiento con gafas y mandos comerciales, \textit{retargeting} a un cuerpo de
+proporciones distintas y transmisión del vídeo estereoscópico. Es la vía por la que se generan las
+demostraciones.
+
+\subsection{Realismo visual mediante reconstrucción de escenas}
+
+\textit{Gaussian Splatting} \cite{kerbl2023gaussian} como forma de dotar a la simulación de un fondo
+fotorrealista procedente de una captura real, y su papel en reducir la distancia entre las imágenes
+de entrenamiento y las de un despliegue posterior.
+
+
+\section{La definición del problema}
+
+Enunciado explícito del problema abordado y de las limitaciones encontradas, redactado en lenguaje
+directo. El núcleo del argumento: existen resultados abundantes de cada familia de métodos por
+separado, pero muy pocos que las enfrenten sobre la misma tarea, el mismo conjunto de datos y el
+mismo criterio de éxito, con un contraste estadístico que tenga en cuenta el emparejamiento de las
+condiciones iniciales. Se enumeran a continuación las limitaciones concretas que el trabajo asume:
+ausencia de robot físico, una sola tarea, una sola semilla de entrenamiento por configuración y un
+plazo acotado.
+
+
+\section{Normativa asociada}
+
+Enumeración y descripción de la normativa que afectaría a un proyecto de este tipo llevado a
+despliegue real. Se organiza en tres bloques: seguridad de máquinas y robótica industrial, atmósferas
+potencialmente explosivas —determinante en el contexto del petróleo y el gas— y regulación de los
+sistemas de inteligencia artificial.
+
+\begin{table*}[ht]
+	\centering
+	\caption{Normativa aplicable a un despliegue del sistema}
+	\label{tab:normativa}
+	\makebox[\textwidth]{
+		\begin{tabular}{|l|p{9cm}|}
+			\cline{1-2}
+			Referencia & Ámbito \\ \hline
+			ISO 12100 & Seguridad de las máquinas: principios generales de diseño y evaluación del riesgo \\
+			ISO 10218-1/-2 & Requisitos de seguridad para robots industriales y su integración \\
+			ISO/TS 15066 & Robots colaborativos: límites de contacto entre robot y persona \\
+			ISO 13849-1 & Partes de los sistemas de mando relativas a la seguridad \\
+			IEC 61508 & Seguridad funcional de sistemas eléctricos y electrónicos programables \\
+			Directiva 2014/34/UE (ATEX) & Equipos destinados a atmósferas potencialmente explosivas \\
+			Reglamento (UE) 2024/1689 & Reglamento europeo de inteligencia artificial \\
+			ISO 690 & Referencias bibliográficas, norma seguida en esta memoria \\ \hline
+		\end{tabular}
+	}
+\end{table*}

@@ -1,0 +1,41 @@
+\chapter{Protocolo de evaluación}
+\label{Protocolo de evaluación}
+
+La plantilla reserva este anexo a los cuestionarios empleados durante la fase de evaluación. En este
+trabajo \textbf{no procede}: la evaluación no se basa en la valoración subjetiva de usuarios, sino en
+la ejecución automatizada de casos de prueba dentro del simulador, con un criterio de éxito medido
+por el propio entorno. En su lugar se documenta aquí el protocolo experimental completo, que cumple
+la misma función de permitir que un tercero reproduzca la evaluación.
+
+\section{Condiciones de la evaluación}
+
+Parámetros fijos de toda evaluación: entorno, \textit{embodiment}, fondo, presupuesto de episodio,
+semillas y número de tiradas. Se justifica cada uno.
+
+\section{Procedimiento}
+
+Secuencia de pasos de una tirada de evaluación, desde el arranque del proceso que sirve la política
+hasta la escritura del fichero de resultados.
+
+\section{Registro de resultados}
+
+Estructura del fichero de resultados y campos que se extraen de él para el análisis.
+
+\begin{table*}[ht]
+	\centering
+	\caption{Campos registrados por episodio}
+	\label{tab:campos-registro}
+	\makebox[\textwidth]{
+		\begin{tabular}{|l|p{10cm}|}
+			\cline{1-2}
+			Campo & Contenido \\ \hline
+			[PENDIENTE] & \\ \hline
+		\end{tabular}
+	}
+\end{table*}
+
+\section{Análisis estadístico}
+
+Procedimiento de análisis: cálculo de las tasas y sus intervalos de Wilson, emparejamiento de las
+tiradas entre políticas, prueba exacta de McNemar sobre los casos discordantes y contraste de Fisher
+para el efecto de la disposición.

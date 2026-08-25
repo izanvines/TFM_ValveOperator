@@ -6,22 +6,22 @@
 				\cline{1-2}
 				\multicolumn{2}{|c|}{}	\\
 				\multicolumn{2}{|c|}{\textbf{UNIVERSIDAD DE LEÓN}}	\\
-				\multicolumn{2}{|c|}{\textbf{Departamento de Matemáticas}}	\\ 
-				\multicolumn{2}{|c|}{\textbf{MÁSTER UNIVERSITARIO EN INVESTIGACIÓN EN CIBERSEGURIDAD}}	\\
-				\multicolumn{2}{|c|}{\textbf{Trabajo de Fin de Máster}}	\\ 
+				\multicolumn{2}{|c|}{\textbf{[PENDIENTE: departamento]}}	\\
+				\multicolumn{2}{|c|}{\textbf{MÁSTER EN ROBÓTICA Y SISTEMAS INTELIGENTES}}	\\
+				\multicolumn{2}{|c|}{\textbf{Trabajo de Fin de Máster}}	\\
 				\multicolumn{2}{|c|}{}	\\ \hline
-				\multicolumn{2}{|l|}{\textbf{ALUMNO}: Nombre y apellidos del alumno}	\\ \hline
-				\multicolumn{2}{|l|}{\textbf{TUTOR}: Nombre y apellidos del tutor}	\\ \hline
-				\multicolumn{2}{|p{16cm}|}{\textbf{TÍTULO}: Título del Trabajo Fin de Máster} \\ \hline
-				\multicolumn{2}{|p{16cm}|}{\textbf{TITLE}: Title of the work} \\ \hline
-				\multicolumn{2}{|l|}{\textbf{CONVOCATORIA}: Mes, año}		\\ \hline
-				\multicolumn{2}{|l|}{\textbf{RESUMEN}:} \\ 
+				\multicolumn{2}{|l|}{\textbf{ALUMNO}: Izan Viñes}	\\ \hline
+				\multicolumn{2}{|l|}{\textbf{TUTOR}: [PENDIENTE: nombre y apellidos del tutor]}	\\ \hline
+				\multicolumn{2}{|p{16cm}|}{\textbf{TÍTULO}: Aprendizaje por imitación para la manipulación de válvulas de volante con el humanoide Unitree G1: modelo visión-lenguaje-acción frente a política clásica} \\ \hline
+				\multicolumn{2}{|p{16cm}|}{\textbf{TITLE}: Imitation Learning for Hand-Wheel Valve Manipulation with the Unitree G1 Humanoid: Vision-Language-Action Model versus Classical Policy} \\ \hline
+				\multicolumn{2}{|l|}{\textbf{CONVOCATORIA}: [PENDIENTE: mes], 2026}		\\ \hline
+				\multicolumn{2}{|l|}{\textbf{RESUMEN}:} \\
 				\multicolumn{2}{|l|}{}\\
-				\multicolumn{2}{|p{16cm}|}{El resumen reflejará las ideas principales de cada una de las partes del Trabajo Fin de Máster pudiendo incluir un avance de los resultados obtenidos. Constará de un único párrafo y se recomienda una longitud no superior a 300 palabras. En cualquier caso esta Hoja de Datos no deberá superar una página de longitud.} \\ 
+				\multicolumn{2}{|p{16cm}|}{Este trabajo compara dos familias de aprendizaje por imitación sobre una misma tarea de manipulación industrial: la apertura de válvulas de volante del sector del petróleo y el gas mediante el humanoide Unitree G1, íntegramente en simulación. Se ha construido la tarea \texttt{g1\_valve} sobre Isaac Lab Arena, con una válvula procedente de un modelo CAD real, el robot equilibrado por una política de control de cuerpo completo y el tren superior gobernado por cinemática inversa. Sobre ese entorno se han grabado cien demostraciones teleoperadas con unas gafas PICO 4 Ultra, en las que la válvula aparece en dos disposiciones —frontal y cenital— sorteadas en cada reinicio, y a las que se aplica después un fondo fotorrealista reconstruido mediante \textit{Gaussian Splatting}. El mismo conjunto de datos alimenta los dos métodos comparados: el ajuste fino del modelo visión-lenguaje-acción NVIDIA GR00T N1.7, de 3140 millones de parámetros, y el entrenamiento de una política ACT de 51,7 millones a través de LeRobot. Ambas se evalúan en el mismo simulador, con la misma métrica y sobre condiciones iniciales idénticas, lo que habilita un contraste pareado. Sobre doscientas tiradas por política, GR00T alcanza un 92\,\% de éxito frente al 86\,\% de ACT (prueba exacta de McNemar, $p = 0{,}047$), diferencia que se concentra casi por completo en la disposición cenital: treinta y seis de los treinta y siete casos discordantes. Una curva de eficiencia con veinticinco, cincuenta y cien demostraciones resulta plana en ambos métodos, y la latencia de inferencia —53\,ms y 5\,ms por bloque de acciones— queda muy por debajo del presupuesto de tiempo real. La limitación dominante no es, por tanto, la cantidad de datos, sino su composición.} \\
 				\multicolumn{2}{|l|}{}\\
 				\hline
-				\multicolumn{2}{|l|}{\textbf{Palabras clave}: Lorem, ipsum, dolor, sit, amet..}	\\ \hline
-				\textbf{Firma del alumno}:\hspace{40mm} & \textbf{VºBº Tutor:}\\ 
+				\multicolumn{2}{|l|}{\textbf{Palabras clave}: aprendizaje por imitación, modelos visión-lenguaje-acción, robot humanoide, manipulación robótica, simulación, teleoperación.}	\\ \hline
+				\textbf{Firma del alumno}:\hspace{40mm} & \textbf{VºBº Tutor:}\\
 				 & \\
 				 & \\
 				 & \\

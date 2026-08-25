@@ -1,0 +1,108 @@
+\mychapter{0}{Glosario de términos}
+\label{chap:glosario}
+% A partir de aquí ya se incluye el encabezado en las páginas:
+\pagestyle{headings}
+
+% Al ser un capítulo sin número, hay que indicarle qué título añadir al encabezado de la página:
+\markboth{GLOSARIO}{}
+
+
+Catálogo de términos específicos del contexto del trabajo. Se recogen tanto los conceptos de
+aprendizaje automático como la terminología de simulación y de control de robots humanoides que
+aparece a lo largo de la memoria, así como los nombres propios de las herramientas empleadas.
+
+
+\begin{description}
+
+	\item[aprendizaje por imitación]: Familia de técnicas en las que una política de control se
+	obtiene a partir de demostraciones de un experto, en lugar de mediante una función de
+	recompensa. Se abrevia habitualmente como IL, del inglés \textit{imitation learning}.
+
+	\item[apertura (\textit{openness})]: Magnitud normalizada entre 0 y 1 con la que el simulador
+	expresa cuánto se ha abierto un elemento articulado, calculada sobre los límites de su
+	articulación. En este trabajo, una apertura de 0,5 equivale a media vuelta del volante y es el
+	umbral de éxito.
+
+	\item[ACT]: \textit{Action Chunking with Transformers}. Política de imitación basada en un
+	autocodificador variacional condicional que predice bloques de acciones futuras en lugar de
+	una acción aislada.
+
+	\item[AGILE]: Política de control de cuerpo completo, distribuida como red neuronal en formato
+	ONNX, encargada de mantener el equilibrio del humanoide durante la manipulación.
+
+	\item[\textit{behavior cloning}]: Enfoque más directo del aprendizaje por imitación: se ajusta
+	un modelo supervisado que asocia observaciones a acciones sobre el conjunto de
+	demostraciones, sin interacción adicional con el entorno.
+
+	\item[\textit{chunk} de acciones]: Bloque de acciones consecutivas que la política emite de una
+	sola inferencia. En este trabajo el bloque es de 40 pasos, que a 50\,Hz equivalen a 0,8
+	segundos de tiempo de robot.
+
+	\item[CVAE]: \textit{Conditional Variational Autoencoder}. Autocodificador variacional
+	condicionado, arquitectura sobre la que se construye ACT.
+
+	\item[disposición cenital]: Colocación de la válvula con el volante mirando hacia arriba y el
+	eje de giro vertical, correspondiente a una válvula montada sobre una línea horizontal. El
+	robot la alcanza por encima.
+
+	\item[disposición frontal]: Colocación de la válvula con el volante encarado al robot y el eje
+	de giro horizontal, correspondiente a una válvula sobre una línea vertical. Se gira como el
+	timón de un barco.
+
+	\item[DoF]: \textit{Degrees of Freedom}, grados de libertad. Número de articulaciones
+	independientes de un mecanismo.
+
+	\item[\textit{embodiment}]: Descripción del cuerpo del robot que una política asume: qué
+	articulaciones tiene, en qué orden y cómo se le envían las órdenes. Un mismo modelo puede
+	servir a varios \textit{embodiments}.
+
+	\item[\textit{flow matching}]: Técnica generativa que aprende un campo de velocidades capaz de
+	transportar ruido hasta la distribución objetivo. Es el mecanismo con el que GR00T genera sus
+	acciones.
+
+	\item[\textit{Gaussian Splatting}]: Técnica de reconstrucción y representación de escenas
+	tridimensionales mediante nubes de primitivas gaussianas, que permite renderizar en tiempo
+	real un entorno capturado a partir de vídeo real.
+
+	\item[GR00T]: Familia de modelos fundacionales de NVIDIA para control de robots humanoides. La
+	variante empleada aquí, GR00T N1.7, es un modelo visión-lenguaje-acción de 3140 millones de
+	parámetros.
+
+	\item[HDF5]: Formato de fichero jerárquico para conjuntos de datos científicos. Es el que
+	produce el grabador de demostraciones del simulador.
+
+	\item[Isaac Lab Arena]: Marco de trabajo de NVIDIA, construido sobre Isaac Lab e Isaac Sim, que
+	compone escenas de manipulación a partir de un registro de recursos y ofrece la infraestructura
+	de grabación y evaluación de políticas.
+
+	\item[LeRobot]: Biblioteca y formato de conjuntos de datos de \textit{Hugging Face} para
+	aprendizaje de políticas robóticas. Almacena los episodios como ficheros \textit{parquet} más
+	vídeo comprimido.
+
+	\item[NuRec]: Componente de Omniverse que permite incorporar reconstrucciones neuronales de
+	escenas reales, en este trabajo la representación por \textit{Gaussian Splatting} de una
+	oficina.
+
+	\item[Pink IK]: Resolvedor de cinemática inversa por tareas ponderadas, empleado para convertir
+	las poses de las muñecas que marca el operador en órdenes articulares para los brazos.
+
+	\item[\textit{retargeting}]: Traslación del movimiento capturado de un operador humano al cuerpo
+	del robot, que tiene proporciones y articulaciones distintas.
+
+	\item[\textit{rollout}]: Ejecución completa de un episodio con una política ya entrenada,
+	empleada para medir su tasa de éxito.
+
+	\item[teleoperación]: Control directo del robot por parte de una persona, aquí mediante unas
+	gafas de realidad mixta y sus mandos, con el propósito de generar las demostraciones.
+
+	\item[USD]: \textit{Universal Scene Description}. Formato de descripción de escenas
+	tridimensionales sobre el que se apoyan Omniverse e Isaac Sim.
+
+	\item[VLA]: \textit{Vision-Language-Action}. Modelo que recibe imágenes y una instrucción en
+	lenguaje natural y produce directamente acciones de control.
+
+	\item[WBC]: \textit{Whole-Body Control}, control de cuerpo completo. Conjunto de técnicas que
+	coordinan todas las articulaciones del robot para mantener el equilibrio mientras se ejecuta
+	una tarea con los brazos.
+
+\end{description}

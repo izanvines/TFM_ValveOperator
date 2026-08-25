@@ -1,0 +1,137 @@
+\chapter{Gestión de proyecto software}
+\label{Gestión de proyecto software}
+
+Este capítulo simula la gestión del proyecto en las condiciones habituales de un entorno
+empresarial, tal como exige la titulación. No describe, por tanto, la forma en que se ha gestionado
+el Trabajo de Fin de Máster —eso se recoge en el anexo
+\ref{Seguimiento de proyecto fin de máster}—, sino cómo se habría planificado, presupuestado y
+controlado el mismo desarrollo si lo hubiera acometido una empresa de ingeniería para un cliente
+del sector del petróleo y el gas.
+
+El supuesto de partida es el siguiente: una empresa de servicios de automatización recibe el
+encargo de evaluar la viabilidad de automatizar el accionamiento de válvulas de volante mediante un
+robot humanoide, y de entregar un dictamen fundamentado sobre qué familia de algoritmos de
+aprendizaje conviene adoptar antes de invertir en la fase de despliegue.
+
+
+\section{Alcance del proyecto}
+\label{Alcance del proyecto}
+
+\subsection{Definición del proyecto}
+
+Objetivo del encargo, entregables comprometidos, criterios de aceptación y, muy especialmente, lo
+que queda \textbf{fuera} de alcance: el despliegue sobre robot físico, la certificación para zona
+ATEX y la integración con el sistema de control de la planta.
+
+\subsection{Estimación de tareas y recursos}
+
+Estructura de descomposición del trabajo en cinco paquetes —entorno de simulación, captura de
+datos, entrenamiento, evaluación y documentación—, con la estimación de esfuerzo de cada uno y los
+perfiles implicados.
+
+\subsection{Presupuesto}
+
+A continuación se detalla un presupuesto estimado para el coste total de este proyecto.
+
+\subsubsection{Coste de personal}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Presupuesto de personal}
+	\label{tab:presupuesto-personal}
+	\makebox[\textwidth]{
+		\begin{tabular}{|l|l|c|c|c|}
+			\cline{1-5}
+			Tarea &	Perfil & Horas & Euros/Hora  &  Total\\ \hline
+			Entorno de simulación & Ingeniero de Robótica Senior & 200 & 100 & 20000 \euro\\
+			Captura de demostraciones & Técnico de Teleoperación & 120 & 60 & 7200 \euro\\
+			Cadena de datos y entrenamiento & Ingeniero de Aprendizaje Automático & 240 & 100 & 24000 \euro\\
+			Evaluación y análisis & Ingeniero de Pruebas & 100 & 80 & 8000 \euro\\
+			Documentación y dictamen & Ingeniero de Robótica Senior & 80 & 100 & 8000 \euro\\
+			Supervisión del proyecto & Jefe de Proyecto & 60 & 120 & 7200 \euro\\ \hline\hline
+			\multicolumn{4}{|c|}{Total} & \multicolumn{1}{c|}{74400 \euro}\\ \hline
+		\end{tabular}
+	}
+\end{table*}
+
+\subsubsection{Coste del hardware}
+
+Detalle del equipamiento necesario: estación de trabajo con dos aceleradoras profesionales, gafas de
+realidad mixta para la captura, y el almacenamiento asociado al conjunto de datos y a los puntos de
+control de los modelos.
+
+\subsubsection{Coste total}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Presupuesto total}
+	\label{tab:presupuesto-total}
+	\makebox[\textwidth]{
+		\begin{tabular}{|l|l|}
+			\cline{1-2}
+			Concepto &	Coste (Euros) \\ \hline
+			Costes de personal & 74400  \\
+			Costes de hardware  & [PENDIENTE]   \\
+			Costes de software y licencias  & [PENDIENTE]   \\ \hline
+			Subtotal  &  [PENDIENTE] \\
+			IVA (21\%) & [PENDIENTE] \\ \hline \hline
+			Total Proyecto & \textbf{[PENDIENTE] \euro} \\ \hline
+	\end{tabular}}
+\end{table*}
+
+\section{Plan de trabajo}
+\label{Plan de trabajo}
+
+\subsection{Identificación de tareas}
+
+Desglose de los cinco paquetes de trabajo en tareas elementales, con sus dependencias.
+
+\subsection{Estimación de tareas}
+
+Duración estimada de cada tarea y justificación de las estimaciones, señalando cuáles son las de
+mayor incertidumbre.
+
+\subsection{Planificación de tareas}
+
+Diagrama de Gantt del proyecto, con el camino crítico señalado.
+
+\begin{figure}[htb]
+\centering
+  \includegraphics[width=\textwidth]{figuras/sistema/gantt.pdf}
+  \caption[Planificación temporal del proyecto]{Planificación temporal del proyecto simulado, con
+  indicación del camino crítico}
+  \label{fig:gantt}
+\end{figure}
+
+
+\section{Gestión de recursos}
+
+\subsection{Especificación de recursos}
+
+Recursos humanos, materiales y de infraestructura necesarios, con sus períodos de disponibilidad.
+
+\subsection{Asignación de recursos}
+
+Reparto de los recursos entre tareas y análisis de la carga, con atención al cuello de botella
+previsible: la disponibilidad de la estación de trabajo durante las fases de entrenamiento.
+
+
+\section{Gestión de riesgos}
+
+\subsection{Identificación de riesgos}
+
+Catálogo de riesgos del proyecto. Se alimenta de los que efectivamente se materializaron durante el
+desarrollo real —inestabilidad de la pila de realidad mixta, incompatibilidades entre versiones de
+las bibliotecas de aprendizaje, invalidación de datos ya capturados— además de los propios de
+cualquier proyecto de esta naturaleza.
+
+\subsection{Análisis de riesgos}
+
+Valoración de cada riesgo en probabilidad e impacto, plan de mitigación y plan de contingencia.
+
+\begin{figure}[htb]
+\centering
+  \includegraphics[width=.8\textwidth]{figuras/sistema/riesgos.pdf}
+  \caption[Matriz de riesgos]{Matriz de riesgos del proyecto: probabilidad frente a impacto}
+  \label{fig:riesgos}
+\end{figure}
