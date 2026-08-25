@@ -7,18 +7,24 @@ de la plantilla y qué es nuestro.
 ## Cómo compilar
 
 ```bash
-sudo apt-get install -y texlive-latex-recommended texlive-latex-extra \
-    texlive-lang-spanish texlive-fonts-recommended texlive-bibtex-extra
-
-cd docs/memoria
-pdflatex Plantilla_Principal_TFM_MARSI.tex
-bibtex   Plantilla_Principal_TFM_MARSI
-pdflatex Plantilla_Principal_TFM_MARSI.tex
-pdflatex Plantilla_Principal_TFM_MARSI.tex
+./docs/memoria/compilar.sh
 ```
 
-Tres pasadas: la primera resuelve el texto, `bibtex` construye la bibliografía y las dos últimas
-fijan índices y referencias cruzadas.
+Hace las tres pasadas de `pdflatex` más `bibtex` —la primera resuelve el texto, `bibtex` construye
+la bibliografía y las dos últimas fijan índices y referencias cruzadas— e imprime el recuento de
+páginas y los avisos que importan: referencias y citas sin resolver, cajas desbordadas y flotantes
+que no caben en su página.
+
+Requiere TeX Live:
+
+```bash
+sudo apt-get install -y texlive-latex-recommended texlive-latex-extra \
+    texlive-lang-spanish texlive-fonts-recommended texlive-bibtex-extra
+```
+
+Queda un aviso que **viene de la plantilla**: `fancyhdr` pide `\headheight` de 14,5\,pt y la
+plantilla lo deja en los 12\,pt por defecto. No rompe nada; corregirlo son dos líneas en el
+preámbulo, que es justo lo que se ha decidido no tocar.
 
 ## Cómo está organizado
 
