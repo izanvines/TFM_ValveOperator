@@ -2,53 +2,89 @@
 \label{Solución}
 
 Este capítulo describe el sistema construido: qué se ha desarrollado, con qué arquitectura, cómo se
-ha implementado y qué pruebas garantizan que cada eslabón hace lo que dice hacer. Es el capítulo más
+ha implementado y qué pruebas garantizan que cada etapa hace lo que dice hacer. Es el capítulo más
 extenso de la memoria porque el trabajo no consiste en aplicar un modelo a un conjunto de datos ya
-existente, sino en construir la tarea, el conjunto de datos y el banco de evaluación desde cero.
+existente, sino en construir la tarea, el conjunto de datos y el banco de evaluación desde cero, y
+en verificar cada pieza antes de apoyar la siguiente sobre ella.
 
 
 \section{Descripción de la solución}
 
-Visión de conjunto antes del detalle. Lo desarrollado es un \textbf{banco de comparación de
-políticas de manipulación}: un entorno de simulación con una tarea instrumentada, una cadena de
-captura y conversión de demostraciones, dos vías de entrenamiento que consumen el mismo conjunto de
-datos, y un protocolo de evaluación que sirve a ambas a través de la misma interfaz.
+Lo desarrollado es un \textbf{banco de comparación de políticas de manipulación}: un entorno de
+simulación con una tarea instrumentada, un \textit{pipeline} de captura y conversión de demostraciones, dos
+vías de entrenamiento que consumen el mismo conjunto de datos, y un protocolo de evaluación que
+sirve a ambas a través de la misma interfaz. La figura \ref{fig:pipeline} lo resume.
 
 \begin{figure}[htb]
 \centering
   \includegraphics[width=\textwidth]{figuras/sistema/pipeline.pdf}
-  \caption[Cadena completa del sistema]{Cadena completa: teleoperación, grabación, conversión,
-  entrenamiento por las dos vías y evaluación sobre el mismo simulador}
+  \caption[\textit{pipeline} completo del sistema]{\textit{pipeline} completo: teleoperación, grabación, reproducción con
+  el fondo de oficina, conversión, entrenamiento por las dos vías y evaluación sobre el mismo
+  simulador}
   \label{fig:pipeline}
 \end{figure}
+
+El \textit{pipeline} tiene cinco etapas y cada una consume la salida de la anterior. El operador teleopera al
+robot con unas gafas de realidad mixta sobre una escena diáfana y el grabador escribe cada
+demostración en un fichero HDF5 con el estado completo del robot, la acción y la imagen de la
+cámara de la cabeza. Un proceso de reproducción vuelve a ejecutar cada demostración con el fondo
+fotorrealista cargado y regraba la imagen, de modo que el conjunto de datos definitivo muestra una
+oficina real sin que el operador haya pagado su coste de render. Un único conversor produce a partir
+del HDF5 un conjunto de datos en formato LeRobot que sirve tanto a GR00T como a ACT. Cada método se
+entrena en su propio entorno de ejecución. Y ambos se evalúan con el mismo cliente, sobre el mismo
+simulador y las mismas condiciones iniciales, servidos por un proceso independiente que es lo único
+que cambia entre una evaluación y otra.
+
+Esa última propiedad es la que da sentido a todo lo demás: el comando que lanza la evaluación es
+idéntico, byte a byte, para el replay de las acciones grabadas, para GR00T y para ACT. Lo único
+que cambia es quién escucha en el puerto. Cualquier diferencia en la tasa de éxito procede, por
+construcción, de la política.
+
+Un módulo instrumental completa el sistema: la reconstrucción fotorrealista de una oficina real
+mediante \textit{Gaussian Splatting}, que aporta el fondo de todas las imágenes de entrenamiento y
+evaluación. Su papel se describe en este capítulo donde interviene; su desarrollo técnico completo
+va en el anexo \ref{Reconstrucción fotorrealista}.
 
 
 \section{El proceso de desarrollo}
 
 El desarrollo ha seguido un modelo iterativo e incremental, con ciclos cortos cerrados por una
-verificación ejecutable. La justificación es específica del dominio: en una cadena de cinco etapas
-donde cada una consume la salida de la anterior, un error silencioso en un eslabón temprano invalida
-todo el trabajo posterior sin producir ningún síntoma visible. El desarrollo se ordena, por tanto,
-de modo que cada etapa quede verificada antes de invertir esfuerzo en la siguiente.
+verificación ejecutable. La justificación es específica del dominio: en un \textit{pipeline} de cinco etapas
+donde cada una consume la salida de la anterior, un error silencioso en una etapa temprana invalida
+todo el trabajo posterior sin producir ningún síntoma visible. Un fichero HDF5 sin imágenes, una
+conversión que salta demostraciones en silencio o una política que emite ceros por un problema de
+dispositivo son indistinguibles, desde fuera, de «la política no aprende». El desarrollo se ordena,
+por tanto, de modo que cada etapa quede verificada con datos reales antes de invertir esfuerzo en la
+siguiente.
+
+En la práctica, los pasos a seguir fueron estos, en orden: crear un entorno en Isaac Sim e integrar la válvula CAD así como el humanoide; fijar la pelvis del robot; grabar una única demostración con imagen, lo que exigió resolver el problema de sincronización del sensor descrito más abajo; decidir el gesto de agarre y regrabar; convertir y verificar una sesión; probar el lazo de evaluación con la reproducción de las acciones grabadas, antes de entrenar nada; entrenar ACT y GR00T sobre esa sesión y evaluarlos; incorporar el fondo fotorrealista por reproducción, y descubrir y corregir que la reproducción no reproducía la demostración; grabar el conjunto definitivo de cien demostraciones; y, por último, los tres experimentos del capítulo \ref{Evaluación}. El anexo \ref{Control de versiones} recoge el historial de confirmaciones que documenta esa secuencia.
+
 
 \subsection{Análisis}
 
 \subsubsection{Definición de requisitos}
 
-Enumeración de los requisitos del sistema, divididos en funcionales y no funcionales.
+Los requisitos se derivan directamente de los objetivos del trabajo. Los funcionales describen lo
+que el sistema hace; los no funcionales, las propiedades sin las cuales la comparación no sería
+válida.
 
 \begin{table*}[ht]
 	\centering
 	\caption{Requisitos funcionales}
 	\label{tab:requisitos-funcionales}
 	\makebox[\textwidth]{
-		\begin{tabular}{|l|p{11cm}|}
+		\begin{tabular}{|l|p{12cm}|}
 			\cline{1-2}
 			Código & Descripción \\ \hline
-			RF-01 & [PENDIENTE: la tarea debe poder teleoperarse y grabarse] \\
-			RF-02 & [PENDIENTE: criterio de éxito objetivo y automático] \\
-			RF-03 & [PENDIENTE: una sola conversión alimenta a los dos métodos] \\
-			RF-04 & [PENDIENTE: banco de evaluación común e intercambiable] \\ \hline
+			RF-01 & La tarea debe poder teleoperarse desde unas gafas de realidad mixta y grabarse en un fichero con el estado del robot, la acción y la imagen de la cámara de la cabeza en cada paso \\
+			RF-02 & El éxito de un episodio debe determinarlo el propio entorno, sin intervención humana, con un criterio medible: media vuelta del volante; durante la grabación, sostenida diez pasos \\
+			RF-03 & En cada reinicio, el entorno debe sortear la disposición de la válvula entre frontal y cenital y aplicar una perturbación aleatoria a su posición, y debe ser posible forzar una disposición \\
+			RF-04 & El fondo fotorrealista debe poder aplicarse a demostraciones ya grabadas sin alterar su trayectoria \\
+			RF-05 & Una única conversión debe producir un conjunto de datos que alimente a ambos métodos sin transformación adicional \\
+			RF-06 & El sistema debe entrenar una política GR00T por ajuste fino y una política ACT desde cero a partir de ese conjunto de datos \\
+			RF-07 & Cualquier política debe evaluarse con el mismo cliente, sobre el mismo entorno y la misma semilla, sirviéndose desde un proceso independiente \\
+			RF-08 & Por cada episodio de evaluación deben registrarse el éxito, si la válvula llegó a moverse y el ángulo final alcanzado \\
+			RF-09 & Debe poder medirse la latencia de inferencia de cada política en lazo cerrado, con observaciones reales \\ \hline
 		\end{tabular}
 	}
 \end{table*}
@@ -58,31 +94,53 @@ Enumeración de los requisitos del sistema, divididos en funcionales y no funcio
 	\caption{Requisitos no funcionales}
 	\label{tab:requisitos-no-funcionales}
 	\makebox[\textwidth]{
-		\begin{tabular}{|l|p{11cm}|}
+		\begin{tabular}{|l|p{12cm}|}
 			\cline{1-2}
 			Código & Descripción \\ \hline
-			RNF-01 & [PENDIENTE: reproducibilidad] \\
-			RNF-02 & [PENDIENTE: latencia compatible con el lazo de control] \\
-			RNF-03 & [PENDIENTE: trazabilidad de datos y modelos] \\ \hline
+			RNF-01 & \textbf{Reproducibilidad.} Todas las poses de la escena deben estar medidas y documentadas; el reinicio debe ser determinista y las condiciones iniciales de evaluación deben depender solo de la semilla \\
+			RNF-02 & \textbf{Latencia.} La inferencia de cualquier política debe caber en el presupuesto del lazo de control: un bloque de 40 acciones cada 0,8 segundos \\
+			RNF-03 & \textbf{Trazabilidad.} Debe poder comprobarse que cada episodio del conjunto convertido procede de la demostración que dice, y que un punto de control entrenado difiere del de partida \\
+			RNF-04 & \textbf{Aislamiento.} Las bibliotecas de aprendizaje no deben instalarse en el intérprete del simulador, cuyas versiones son incompatibles con ellas \\
+			RNF-05 & \textbf{Desatención.} Los trabajos largos —reproducción, entrenamiento, evaluación— deben poder ejecutarse sin supervisión y reanudarse sin repetir lo hecho \\
+			RNF-06 & \textbf{Fluidez.} La teleoperación debe mantener una tasa de imagen en las gafas suficiente para que el operador pueda agarrar un radio del volante \\ \hline
 		\end{tabular}
 	}
 \end{table*}
 
 \subsubsection{Especificación de requisitos}
 
-Análisis de los requisitos desde el punto de vista del comportamiento, la estructura y la
-funcionalidad del sistema, con los casos de uso principales: capturar una sesión de demostraciones,
-convertir un conjunto de datos, entrenar una política y evaluarla.
+Los casos de uso principales son cuatro, y cada uno corresponde a una etapa de la figura \ref{fig:pipeline}.
+
+\begin{description}
+	\item[Capturar una sesión.] Se arranca el servicio de transmisión a las gafas y el grabador;
+	se inicia la teleoperación, se pulsa el botón de inicio y se ejecuta la tarea un número fijado
+	de veces. El entorno reinicia entre demostraciones, sortea la válvula y escribe cada
+	demostración con éxito en el reinicio siguiente. La sesión termina en un fichero HDF5 que se
+	audita antes de darse por buena.
+	\item[Convertir un conjunto de datos.] A partir de uno o varios ficheros de sesión, se aplica
+	el fondo fotorrealista por reproducción, se fusionan las sesiones y se convierten al formato
+	LeRobot. La conversión se verifica contra el HDF5 de origen.
+	\item[Entrenar una política.] En el entorno de ejecución del método elegido, se calculan las
+	estadísticas del conjunto de datos y se lanza el entrenamiento. El punto de control resultante
+	se compara con el de partida para comprobar que ha cambiado.
+	\item[Evaluar una política.] Se arranca el servidor de la política en su entorno y el cliente
+	de evaluación en el simulador. El cliente ejecuta el número de episodios pedido con la semilla
+	fijada y escribe las métricas por episodio.
+\end{description}
+
+Desde el punto de vista del comportamiento, la propiedad que atraviesa los cuatro casos es que
+ninguna etapa da por buena la anterior sin comprobarla: la auditoría de la sesión, la verificación
+de la conversión, la comparación de pesos y la reproducción de las acciones grabadas como cota
+superior son parte de la especificación, no añadidos.
+
 
 \subsection{Diseño}
 
 \subsubsection{Diseño de sistema}
 
-Arquitectura y tecnologías. El sistema se reparte entre un contenedor que aloja el simulador y dos
-entornos de ejecución independientes para cada método de aprendizaje, comunicados con el simulador
-mediante un protocolo de mensajería. Esa separación no es estética: las bibliotecas de aprendizaje
-fijan versiones de sus dependencias que son incompatibles con las que exige el simulador, de modo
-que instalarlas juntas rompería la herramienta necesaria para evaluar.
+El sistema se reparte entre un contenedor que aloja el simulador y dos entornos de ejecución
+independientes en la máquina anfitriona, uno por método de aprendizaje, comunicados con el simulador
+mediante un protocolo de mensajería. La figura \ref{fig:arquitectura} lo muestra.
 
 \begin{figure}[htb]
 \centering
@@ -92,52 +150,206 @@ que instalarlas juntas rompería la herramienta necesaria para evaluar.
   \label{fig:arquitectura}
 \end{figure}
 
-\begin{table*}[ht]
+Esa separación no es estética. Hay \textbf{tres intérpretes de Python} y ninguno puede hacer el
+trabajo de los otros. El del simulador, Isaac Sim, fija sus propias versiones de PyTorch y NumPy y
+no arranca fuera del contenedor. El de GR00T necesita las dependencias de la versión N1.7 del
+modelo, que no están en el intérprete del simulador. Y LeRobot, que es la implementación de ACT,
+exige un NumPy moderno que el intérprete del simulador no admite y fija su propio PyTorch;
+instalarla en el simulador rompería la herramienta que se necesita para evaluar. Cada uno vive,
+por tanto, en su sitio: el simulador en el contenedor, y cada biblioteca de aprendizaje en un
+entorno virtual propio en el anfitrión. Los tres comparten los directorios de datos, modelos y
+resultados, montados en el contenedor, y comparten la interfaz de red local porque el contenedor
+usa la red del anfitrión.
+
+La comunicación es un patrón cliente--servidor sobre ZMQ que el marco de simulación ya trae: el
+simulador es el cliente, envía la observación y recibe un bloque de acciones; la política es el
+servidor. GR00T, ACT y la reproducción de acciones grabadas implementan la misma interfaz de
+servidor, y el cliente no sabe cuál de los tres tiene delante. La tabla \ref{tab:tecnologias}
+recoge las tecnologías y las versiones exactas empleadas.
+
+\begin{table*}[!htbp]
 	\centering
 	\caption{Tecnologías empleadas y versiones}
 	\label{tab:tecnologias}
 	\makebox[\textwidth]{
-		\begin{tabular}{|l|l|p{7cm}|}
+		\begin{tabular}{|l|l|p{6.6cm}|}
 			\cline{1-3}
 			Componente & Versión & Función \\ \hline
-			[PENDIENTE] & & \\ \hline
+			Ubuntu & 24.04.4 LTS & Sistema operativo del anfitrión \\
+			Docker & 29.6.2 & Contenedor del simulador \\
+			Controlador NVIDIA & 580.173 & Acceso a las dos GPU; CUDA 12.8 \\ \hline
+			Isaac Sim & 6.0.0 & Simulador: física PhysX, render RTX, escenas USD \\
+			Isaac Lab & 3.0.0 & Marco de tareas y gestores sobre Isaac Sim \\
+			Isaac Lab Arena & 0.2.1 & Composición de escenas, teleoperación, grabación, evaluación y política remota \\
+			Isaac-GR00T & N1.7 & Modelo, ajuste fino y servidor de GR00T \\
+			LeRobot & 0.3.3 & Formato de datos y entrenamiento de ACT \\
+			PyTorch & 2.10 (contenedor), 2.7.1 (anfitrión) & Aprendizaje profundo, compilado para CUDA 12.8 \\
+			Python & 3.12 (contenedor), 3.10 (anfitrión) & Tres intérpretes independientes \\ \hline
+			CloudXR e IsaacTeleop & de Isaac Lab Arena & Transmisión estereoscópica a las gafas y retorno de poses por OpenXR \\
+			PICO 4 Ultra & --- & Visor de realidad mixta y mandos \\
+			Pink IK & de Isaac Lab Arena & Cinemática inversa de los brazos \\
+			AGILE & red ONNX & Política de equilibrio de cuerpo completo \\
+			NuRec & de Omniverse & Render del fondo por \textit{Gaussian Splatting} \\ \hline
+			ZMQ & pyzmq & Cliente--servidor entre simulador y políticas \\
+			HDF5 y Parquet & h5py 3.16, pyarrow & Formatos de grabación y de conjunto de datos \\ \hline
 		\end{tabular}
 	}
 \end{table*}
 
 \subsubsection{Diseño detallado}
 
-Diseño de la tarea de simulación, de la representación de los datos y de la interfaz de las
-políticas.
+\paragraph{La tarea de simulación.} La tarea se registra en el marco de simulación con el nombre
+\texttt{g1\_valve} y se define en un único fichero propio. La escena de captura es deliberadamente
+diáfana: un plano de suelo, una luz de cúpula y nada más, porque cada elemento visual tiene que
+renderizarse en tiempo real para que las gafas puedan muestrear la escena. El robot es el Unitree
+G1 con el \textit{embodiment}
+\texttt{g1\_wbc\_agile\_pink}: las piernas las sostiene la política de equilibrio AGILE y el tren
+superior lo gobierna la cinemática inversa a partir de las poses de las muñecas que marca el
+operador, con la cintura bloqueada porque la tarea es estática. Si la pelvis no estuviera bloqueada
+sería imposible para el operador mantener el equilibrio de todo el cuerpo a la vez que intenta
+girar la válvula, el robot se desequilibraría y se giraría sobre si mismo.
 
-\paragraph{La tarea de simulación.} Escena, robot, válvula y criterio de éxito. Se detalla aquí la
-elección de las dos disposiciones de la válvula, la aleatorización de su posición y el
-procedimiento de medida con el que se han fijado todas las poses del entorno.
+La válvula procede de un modelo CAD de una válvula de compuerta real, envuelto en una capa USD
+propia que hace tres cosas, todas necesarias y ninguna evidente. Primera, \textbf{reescala el
+recorrido del volante}: el CAD lo declara de 539,7\textdegree{} a 2879,8\textdegree{} —seis vueltas
+y media, fiel a una válvula multivuelta—, pero el marco normaliza la apertura sobre los límites de la
+articulación y el éxito es apertura mayor que 0,5, de modo que con los límites originales cada
+demostración habría exigido tres vueltas y cuarto completas dentro de un episodio. Eso es
+inalcanzable por teleoperación, todos los episodios habrían muerto por tiempo y ninguno se habría
+escrito jamás en el fichero. El recorrido se reescala a 0--360\textdegree, y así media vuelta es el
+umbral de éxito. Segunda, \textbf{conserva los materiales} físicos que el CAD referencia fuera del
+subárbol —fricción estática 1,2 y dinámica 1,0—, sin los cuales los dedos resbalan en el radio.
+Tercera, \textbf{quita el freno}: el modelo traía un amortiguamiento viscoso de 100 que exigía del
+orden de 1000\,N$\cdot$m para girar a 10\textdegree/s, cuando la mano del G1 entrega unidades; se
+baja a 0,01.
+
+La válvula adopta en cada reinicio una de dos \textbf{disposiciones}, sorteadas al 50\,\%, que la
+figura \ref{fig:disposiciones} muestra. En la \textbf{frontal} el volante mira al robot con el eje
+horizontal —una válvula sobre una línea vertical, que se gira como un timón— y su centro queda en
+$(0{,}40, 0, 0{,}80)$\,m respecto al pelvis, justo por encima de la altura de reposo de las muñecas,
+0,762\,m. En la \textbf{cenital} el volante mira hacia arriba con el eje vertical —una válvula sobre
+una línea horizontal, que se alcanza por encima— y su centro queda en $(0{,}30, 0, 0{,}66)$\,m: más
+cerca y más bajo, porque girar desde arriba exige acercar el codo al cuerpo y el volante debe quedar
+por debajo de las muñecas. Ninguna de esas cifras es un cálculo: las dos distancias se ajustaron
+con el operador dentro de las gafas, y la cenital pasó por 0,35\,m —lejos— y 0,20\,m —encima del
+propio torso, como predice el radio de 0,10\,m del volante— antes de fijarse en 0,30\,m. A la
+posición de cada disposición se suma en cada reinicio una perturbación uniforme de
+$\pm(4, 6, 3)$\,cm, acotada por el alcance del brazo.
 
 \begin{figure}[htb]
 \centering
   \includegraphics[width=\textwidth]{figuras/simulacion/disposiciones.png}
   \caption[Las dos disposiciones de la válvula]{Las dos disposiciones de la válvula: frontal, con el
-  eje de giro horizontal, y cenital, con el eje vertical}
+  eje de giro horizontal, y cenital, con el eje vertical. Vista de tercera persona con el fondo de
+  oficina}
   \label{fig:disposiciones}
 \end{figure}
 
-\paragraph{El espacio de acción.} Composición de las veintitrés dimensiones que gobiernan al robot y
-discusión de las que resultan degeneradas en el conjunto de datos.
+El robot aparece \textbf{ya de pie}, con el pelvis a 0,74\,m. Es la línea más importante del
+fichero de la tarea, y se justifica con una medida. Si aparece con el pelvis a la altura del suelo,
+la política de equilibrio lo levanta a través del espacio que ocupa la válvula, y el resultado es
+un reinicio distinto cada vez y alguna caída. Medido sobre cinco reinicios: con el robot en el
+suelo y la válvula delante, la dispersión de la pose final es de $(0{,}300, 0{,}149, 0{,}310)$\,m y
+cae una de cinco veces; apareciendo de pie, la dispersión es de $(0{,}001, 0{,}001, 0{,}001)$\,m y
+no cae ninguna. No es una cuestión de orden: es una propiedad de calidad de los datos, porque cada
+demostración empieza desde la misma pose y una tirada fallida en evaluación es atribuible a la
+política y no a un mal reinicio.
+
+El \textbf{pelvis está además fijado al mundo} durante la manipulación. La decisión inicial era
+mantenerlo libre bajo la política de equilibrio, por realismo, y la teleoperación la invalidó en
+la primera sesión: al girar el volante, el par de reacción llega por los brazos al tronco, y con un
+tronco libre la política de equilibrio lo absorbe de la única manera que puede, girando al robot
+entero. Cada demostración habría codificado esa deriva como parte de la tarea, y las poses de las
+muñecas, expresadas en el sistema de referencia del pelvis, habrían hecho que gestos idénticos
+parecieran acciones distintas. Con el pelvis fijado, la deriva medida sobre tres reinicios es de
+$(0{,}000, 0{,}000, 0{,}000)$\,m; la política de equilibrio sigue activa sobre las piernas, y el
+espacio de acción no cambia. Es la única concesión de realismo del entorno y se declara como tal
+en las limitaciones del trabajo.
+
+El \textbf{criterio de éxito} es apertura mayor que 0,5, media vuelta. Durante la grabación se
+exige además que se sostenga diez pasos consecutivos, para que un roce no cuente como
+demostración; en evaluación el episodio termina en el paso en que se supera. El entorno avanza a 50\,Hz (paso de física de 5\,ms con
+decimación 4). El presupuesto de episodio es de 15\,s por defecto; durante la captura se eleva a
+30\,s, porque el episodio termina solo al alcanzar el éxito y un presupuesto generoso solo alarga
+los fallos, mientras que uno corto convierte un casi-éxito en un tiempo agotado que no se escribe;
+en evaluación se fija en 20\,s.
+
+\paragraph{El espacio de acción.} El operador gobierna al robot a través de un vector de
+\textbf{veintitrés dimensiones}, cuya composición recoge la tabla \ref{tab:accion}. Las poses de
+las muñecas se expresan en el sistema del pelvis; la cinemática inversa las convierte en los
+ángulos de las articulaciones de los brazos, y la política de equilibrio recibe los canales de
+mando de la base.
+
+\begin{table*}[!htbp]
+	\centering
+	\caption{Composición del espacio de acción de veintitrés dimensiones}
+	\label{tab:accion}
+	\makebox[\textwidth]{
+		\begin{tabular}{|c|l|c|p{6.4cm}|}
+			\cline{1-4}
+			Índices & Componente & Dim. & Contenido y estado en el conjunto de datos \\ \hline
+			0, 1 & Estado de cada mano & 2 & Cierre de la mano. Vale $0{,}5 \cdot \text{gatillo} - 0{,}5 \cdot \text{empuñadura}$; el entorno lee 0 como mano abierta \\
+			2--4, 5--8 & Muñeca izquierda & 7 & Posición $xyz$ y cuaternión $xyzw$ en el sistema del pelvis \\
+			9--11, 12--15 & Muñeca derecha & 7 & Ídem \\
+			16--18 & Locomoción & 3 & Velocidad de avance, lateral y de giro. Congelada a cero: dimensiones muertas \\
+			19 & Altura del pelvis & 1 & Constante 0,72\,m: casi muerta \\
+			20--22 & Orientación del torso & 3 & Alabeo, cabeceo y guiñada. Cintura bloqueada: dimensiones muertas \\ \hline
+		\end{tabular}
+	}
+\end{table*}
+
+Dos propiedades de ese vector condicionaron el trabajo. La primera es el \textbf{estado de las
+manos}, que no es un bit de abierto o cerrado sino la combinación del gatillo y la empuñadura del
+mando, con signos opuestos: apretar los dos a la vez da cero, y cero significa mano abierta para el
+entorno. Pulsar más fuerte puede abrir la mano. Por eso el gesto de captura se fijó antes del
+conjunto definitivo —solo el gatillo— y por eso la primera demostración grabada, en la que el
+volante se giró empujando los radios con la mano abierta, tenía esas dos dimensiones constantes a
+cero. La segunda es que \textbf{seis de las veintitrés dimensiones tienen desviación típica
+exactamente cero} en el conjunto definitivo —las tres de locomoción, congeladas para que el operador
+no pudiera alejar al robot con el mando, y las tres de orientación del torso, bloqueadas—, y la
+altura del pelvis es casi constante. La figura \ref{fig:std-accion} lo muestra. Una normalización
+por media y desviación divide por esos ceros; se dejaron como están, documentadas, porque
+eliminarlas habría introducido una variable nueva en un experimento ya cerrado, y se señalan como
+línea de trabajo futuro.
 
 \begin{figure}[htb]
 \centering
   \includegraphics[width=\textwidth]{figuras/resultados/fig7_std_espacio_accion.pdf}
   \caption[Variabilidad de las dimensiones del espacio de acción]{Desviación típica de cada una de
-  las veintitrés dimensiones del espacio de acción sobre el conjunto de datos definitivo}
+  las veintitrés dimensiones del espacio de acción sobre el conjunto de datos definitivo. Seis son
+  exactamente cero}
   \label{fig:std-accion}
 \end{figure}
 
-\paragraph{El conjunto de datos.} Estructura del formato de almacenamiento y correspondencia entre
-la acción de veintitrés dimensiones del simulador y el espacio articular de cuarenta y tres grados
-de libertad que consumen las políticas. Se caracteriza aquí el conjunto capturado: cuántas
-demostraciones tiene cada sesión, cómo se repartieron entre las dos disposiciones y cuánto dura
-cada episodio.
+\paragraph{El conjunto de datos.} Por cada demostración con éxito, se escribe un grupo
+en el fichero HDF5 con la acción de veintitrés dimensiones, la observación —posición de las
+cuarenta y tres articulaciones, poses de las muñecas, pose del robot— y la imagen RGB de la cámara
+de la cabeza a $640 \times 480$ píxeles, todo a 50\,Hz, más el estado inicial completo de la escena
+y, en cada paso, el estado de todas las articulaciones del robot y de la válvula. Ese último
+detalle, que en el grabador de referencia es un subproducto, resultó ser lo que hace posible la
+reproducción exacta con el fondo fotorrealista (anexo \ref{Reconstrucción fotorrealista}).
+
+La conversión al formato LeRobot no toma como acción las veintitrés dimensiones del operador sino
+las \textbf{cuarenta y tres posiciones articulares} que la cinemática inversa produce a partir de
+ellas: es el espacio de articulaciones para el que existen la descripción del \textit{embodiment}
+del G1 y el modelo de partida de GR00T, y es lo que ambas políticas aprenden a emitir. La
+consecuencia es que en evaluación el simulador se lanza con otro \textit{embodiment},
+\texttt{g1\_wbc\_agile\_joint}, que acepta directamente esas posiciones articulares junto con los
+canales de mando de la base. Nada en el marco de simulación prueba ese viaje de ida y vuelta —la
+salida de la cinemática inversa como entrada del controlador—, y por eso se probó con la
+reproducción de las acciones grabadas antes de entrenar nada.
+
+El conjunto definitivo son \textbf{cien demostraciones}, grabadas en cuatro sesiones de veinticinco
+—las sesiones 02 a 05; la 01, grabada empujando el volante con la mano abierta, es una prueba del
+\textit{pipeline} y no entra—, todas con éxito, con la mano cerrada sobre un radio y la válvula sorteada en
+cada reinicio. El sorteo salió exactamente 50 frontales y 50 cenitales sin que nadie lo forzara:
+las sesiones 02 y 03 se escoraron hacia la cenital (19 frente a 31) y las 04 y 05 hacia la
+frontal (31 frente a 19), como muestra la figura \ref{fig:reparto-disposiciones}. Las
+demostraciones duran entre 156 y 523 pasos —de 3,1 a 10,5 segundos, 6,5 de media— y suman 32\,573
+pasos, once minutos de demostración (figura \ref{fig:duracion-episodios}). Alguna mano está cerrada
+en el 61\,\% de los pasos, de media. Tras la reproducción con el fondo de oficina y la conversión,
+el conjunto LeRobot tiene 32\,473 fotogramas —el conversor descarta el último de cada
+demostración—, ocupa 100\,MB, y su verificación contra el HDF5 de origen no arrojó ningún fallo.
 
 \begin{figure}[htb]
 \centering
@@ -150,60 +362,186 @@ cada episodio.
 \begin{figure}[htb]
 \centering
   \includegraphics[width=\textwidth]{figuras/resultados/fig6_duracion_episodios.pdf}
-  \caption[Duración de las demostraciones]{Distribución de la duración de las demostraciones
+  \caption[Duración de las demostraciones]{Distribución de la duración de las cien demostraciones
   capturadas}
   \label{fig:duracion-episodios}
 \end{figure}
 
+\paragraph{La interfaz de las políticas.} Toda política se sirve como un proceso que implementa
+la interfaz de servidor del marco: recibe la observación —la imagen de la cámara, el estado
+articular y la instrucción en lenguaje natural, «\textit{turn the handwheel to open the valve}»—
+y devuelve un bloque de cuarenta acciones, que el cliente ejecuta a 50\,Hz antes de pedir el
+siguiente. Cuarenta pasos son el horizonte del modelo de partida de GR00T, y ACT se entrena con el
+mismo tamaño de bloque en lugar de su valor por defecto de cien, para comparar ambas políticas al
+mismo horizonte y para que la demostración más corta no sea en su mayoría relleno. La acción que
+viaja tiene cincuenta dimensiones: las cuarenta y tres articulaciones más los siete canales de
+mando de la base, que se rellenan con sus valores de reposo, leídos de las estadísticas del
+conjunto de datos —la altura del pelvis, en particular, a 0,72\,m, porque un cero en esa posición
+sienta al robot en el suelo.
+
+
 \subsection{Implementación}
 
-Herramientas empleadas, organización del proyecto y peculiaridades de la implementación. Esta
-sección recoge las decisiones técnicas que condicionaron el resultado y los problemas que hubo que
-resolver para que la cadena funcionase: el reescalado de los límites de la articulación de la
-válvula, la altura de aparición del robot, la sincronización del sensor de imagen con la
-construcción del entorno, la elección del dispositivo de física durante la captura y el
-procedimiento de reaplicación del fondo fotorrealista sobre demostraciones ya grabadas.
+El código propio vive en un repositorio propio, separado del marco de simulación de terceros, y se
+organiza en tres partes: \texttt{sim/}, con todo lo que define la tarea —el fichero del entorno, la
+válvula y su capa USD, la configuración de conversión, los parches sobre el marco y una veintena de
+guiones de medida y diagnóstico—; \texttt{train/}, con los guiones de reproducción, conversión,
+verificación, servicio de políticas, subconjuntos, medida de latencia y figuras; y \texttt{docs/},
+con las guías de lanzamiento y de entrenamiento, los informes de resultados y esta memoria. El
+simulador se ejecuta desde un \textit{checkout} del marco de terceros, y un guion de sincronización
+mantiene ambas copias en correspondencia; los cambios sobre ficheros del marco se conservan como
+parches contra la versión oficial, no como copias, para que quede explícito qué se ha tocado (anexo
+\ref{Control de versiones}).
+
+Las decisiones de implementación que condicionaron el resultado, y los problemas que hubo que
+resolver para que el \textit{pipeline} funcionase, son los siguientes. Cada uno costó al menos una sesión, y
+ninguno produjo un mensaje de error que apuntara a su causa.
+
+\textbf{La sincronización del sensor con la construcción del entorno.} Grabar con cámara bajo
+realidad mixta fue imposible durante un día entero. El marco inicializa la simulación y actualiza la
+escena antes de construir los gestores de observación, pero esa actualización no renderiza, de modo
+que cuando el gestor pide a la cámara su primer fotograma la cámara no tiene ninguno. Sin realidad
+mixta el problema se resuelve solo; con ella, la cámara bloquea el proceso para siempre, y con la
+física en GPU la misma situación aflora como un acceso ilegal a memoria dentro del motor de física.
+Las escenas con un fondo USD grande funcionaban por accidente, porque su tiempo de carga dejaba que
+un fotograma se produjera antes, y eso hizo parecer durante horas que el problema era el contenido
+de la escena. Se descartaron por medida el suelo, sus texturas, la geometría visible, la luz y el
+antialiasing. La corrección es un parche de cuatro renders antes de construir los gestores, activo
+solo cuando hay sensores de render en la escena.
+
+\textbf{Física en CPU durante la captura.} La combinación de física en GPU, realidad mixta y
+cámaras mata el entorno al crearse, siempre a los 23 segundos. Se bisecó: física en GPU con cámaras
+y sin realidad mixta funciona, con realidad mixta y sin cámaras funciona, y los tres juntos fallan.
+La captura se hace con la física en CPU, que no recorre ese camino del motor, y no cuesta tasa de
+imagen: los ~20 fotogramas por segundo del visor los fijan la calidad de render y el modo de
+iluminación, no el dispositivo de física. Es la razón de que los sesenta y cuatro núcleos de la
+estación no sean un exceso.
+
+\textbf{La pila de realidad mixta.} Cuatro problemas independientes, cada uno con un síntoma
+idéntico —imagen negra o inutilizable— y ninguno con un error. El anclaje del visor quedaba a la
+altura del pelvis por un fallo al crear la primitiva de anclaje, resuelto con un parche que la crea
+con USD crudo. El antialiasing forzado por el marco activaba un modo de render que sobreexponía la
+escena, resuelto haciéndolo opcional. El visualizador del simulador no existe salvo que se pida
+explícitamente, de modo que el monitor de tercera persona transmitía un búfer vacío. Y el cortafuegos
+del anfitrión descarta en silencio los paquetes a puertos sin regla, con el agravante de que el
+servicio de transmisión a las gafas ocupa un puerto fijo que coincide con el del monitor, de modo
+que este último hubo que moverlo. El monitor de tercera persona, comparado con lo que veía el
+operador, fue la herramienta que aisló dos de los cuatro.
+
+\textbf{Tres intérpretes y sus fallos silenciosos.} El entrenamiento de GR00T sobre dos GPU se
+queda parado antes de empezar, con ambos procesos consumiendo CPU y ninguna GPU trabajando; en una
+sola GPU entrena a 3,2 pasos por segundo, diez mil pasos en menos de una hora, así que no merecía la
+pena depurarlo. ACT emitía exactamente ceros, y no era el entrenamiento: mover la política a la
+segunda GPU por su índice corrompe los búferes de normalización sin lanzar nada, la desviación
+típica queda a cero, el estado normalizado se dispara y la red satura. Se sirve seleccionando la
+GPU por variable de entorno, y el servidor comprueba los búferes al arrancar y se niega a servir si
+los ve mal. Y el entrenador de GR00T reanuda desde cualquier punto de control que encuentre en el
+directorio de salida: uno viejo con el paso final ya alcanzado ejecuta cero pasos y guarda pesos
+intactos con un registro impecable; de ahí que cada entrenamiento use un directorio nuevo y que el
+punto de control se compare siempre con el de partida.
+
+\textbf{El fondo fotorrealista, aplicado por reproducción.} La figura \ref{fig:escenas} muestra
+la misma demostración en la escena diáfana en la que se grabó y con el fondo de oficina que llega
+al conjunto de datos. El fondo cuesta unos 39\,ms por paso y en el visor eso es la diferencia entre
+poder agarrar un radio y no poder, así que se aplica después, sin gafas y sin nadie delante: unos
+doce minutos por sesión de veinticinco. La primera versión reproducía las acciones grabadas en lazo
+abierto y \textbf{no reproducía la demostración}: las piernas las gobierna la política de equilibrio
+en lazo cerrado y no se reproducen desde el fichero, así que el estado diverge desde el primer
+paso y el volante acaba, en el peor caso, 80\textdegree{} corto. La versión definitiva impone en
+cada paso el estado grabado de la escena, y las cincuenta demostraciones de prueba se reproducen
+con una diferencia máxima de 1,1\textdegree. El anexo \ref{Reconstrucción fotorrealista} documenta
+el diagnóstico y lo relaizado en la implementación.
 
 \begin{figure}[htb]
 \centering
   \includegraphics[width=\textwidth]{figuras/simulacion/escenas.png}
   \caption[Escena de captura y escena del conjunto de datos]{Escena diáfana empleada durante la
   teleoperación, frente a la misma demostración con el fondo de oficina reconstruido, que es la que
-  llega al conjunto de datos}
+  llega al conjunto de datos. Vista de la cámara del robot}
   \label{fig:escenas}
 \end{figure}
 
+\textbf{El agarre y el gesto.} La primera demostración grabada giró el volante empujando los
+radios con la mano abierta, y funcionó. Se decidió agarrar, porque es más defendible en el contexto
+industrial y porque un agarre es lo que transmite par a una válvula dura. Fijado el gesto —solo el
+gatillo—, se grabó una demostración, se comprobó con el auditor que las dimensiones de las manos ya
+no eran constantes, y solo entonces empezaron las sesiones. Los dos mandos registran el cierre con
+el mismo signo, que no es lo que la documentación del retargeter predice; se dejó así porque es
+uniforme, y con la condición de que el gesto no cambiara a mitad del conjunto de datos.
+
+
 \subsection{Pruebas}
 
-Pruebas realizadas sobre cada eslabón de la cadena, con el resultado de cada una. La pieza central
-es la reproducción de las acciones grabadas como cota superior del sistema: si reproducir las
-órdenes de una demostración no abre la válvula, ninguna política entrenada sobre ellas lo hará, y
-eso debe saberse antes de invertir en la captura masiva.
+Cada etapa del \textit{pipeline} tiene una prueba ejecutable, y ninguna se apoya en mirar el resultado a
+ojo. La tabla \ref{tab:pruebas} las recoge con el resultado obtenido sobre el sistema definitivo.
+La pieza central es la \textbf{reproducción de las acciones grabadas} como cota superior del
+sistema: si reproducir las órdenes de una demostración no abre la válvula, ninguna política
+entrenada sobre ellas lo hará, y eso debe saberse antes de invertir en la captura masiva. Se hizo
+antes de entrenar nada, y de haber fallado habría obligado a cambiar la representación de la
+acción con el conjunto de datos aún por grabar, no después.
 
-\begin{table*}[ht]
+\begin{table*}[!htbp]
 	\centering
-	\caption{Pruebas de verificación de la cadena}
+	\caption{Pruebas de verificación del \textit{pipeline}}
 	\label{tab:pruebas}
 	\makebox[\textwidth]{
-		\begin{tabular}{|l|p{8cm}|l|}
+		\begin{tabular}{|p{3.4cm}|p{6.3cm}|p{4.5cm}|}
 			\cline{1-3}
 			Prueba & Qué verifica & Resultado \\ \hline
-			[PENDIENTE] & & \\ \hline
+			Medida de la escena & Pose real del volante y del robot tras el reinicio, con repeticiones para obtener la dispersión & Dispersión de 1\,mm; 0 caídas en 5 reinicios \\
+			Sorteo de la válvula & Que las dos disposiciones aparecen y la posición varía dentro de la perturbación pedida & Ambas presentes; perturbación dentro de $\pm(4,6,3)$\,cm \\
+			Render vivo & Que el visualizador produce imagen antes de culpar a la red & PNG del viewport con contenido desde el segundo fotograma \\
+			Auditoría de sesión & Demostraciones, éxito, forma de la acción, dimensiones constantes y fotogramas negros de cada HDF5 & 100/100 con éxito; manos no constantes; 0 fotogramas negros \\
+			Reproducción con fondo & Que cada demostración reproducida conserva sus pasos, cruza el umbral y cambia de imagen & 50/50 reproducen; diferencia máxima de 1,1\textdegree \\
+			Verificación del conjunto & Longitudes, contigüidad de índices, procedencia de cada episodio y estadísticas contra el HDF5 & 0 fallos sobre las 100 demostraciones \\
+			Cota superior & Reproducción de las acciones grabadas a través de la interfaz de evaluación & 3/3 éxitos; la válvula se mueve en el 100\,\% \\
+			Comparación de pesos & Que el punto de control entrenado difiere del de partida en las capas entrenables y no en las congeladas & 493 tensores congelados sin cambio; 537 entrenables con cambio \\
+			Búferes de ACT & Que la desviación típica de normalización no es cero antes de servir & Comprobación al arrancar; rechaza servir si falla \\
+			Emparejamiento & Que ambas políticas ven las mismas condiciones iniciales & Poses idénticas hasta $10^{-9}$\,m \\
+			Latencia & Que ninguna inferencia supera el presupuesto del lazo & 226 medidas, máximo 133\,ms frente a 800\,ms \\ \hline
 		\end{tabular}
 	}
 \end{table*}
 
+Hay además una prueba que falló y se documenta como tal: el intento de girar el volante aplicando
+un par externo conocido devuelve siempre cero grados, incluso con 50\,N$\cdot$m, porque el camino
+de fuerzas externas es una operación nula en este \textit{backend} de física. No invalida nada
+—la válvula gira cuando la mano la empuja— pero descarta esa vía para caracterizar su dureza.
+
 
 \section{El producto del desarrollo}
 
-Descripción del entregable: el repositorio, su organización, la documentación de lanzamiento y de
-entrenamiento, y la forma de ejecutar cada etapa. Se incluyen ejemplos de la interfaz de captura tal
-como la ve el operador y de la vista que recibe la política.
+El entregable es el repositorio, público, con tres piezas que un tercero necesita para reproducir
+el trabajo:
+
+\begin{center}
+\repolink
+\end{center} La \textbf{guía de lanzamiento} recoge, verificados, los cuatro modos de ejecución del
+simulador —ver la escena, teleoperar, grabar y aplicar el fondo—, las tres líneas que van en todo
+comando y qué pasa si faltan, los puertos, las variables de entorno y una tabla de fallos típicos
+con su causa. La \textbf{guía de entrenamiento} empieza donde acaba la anterior: qué corre en cuál
+de los tres intérpretes, la conversión, las estadísticas, la prueba del lazo, los dos
+entrenamientos, cómo servir cada política y cómo saber si un entrenamiento ha entrenado de verdad.
+Y los \textbf{guiones}, que son los que ejecutaron el sistema definitivo: el \textit{pipeline} completo de
+las cien demostraciones, los entrenamientos, las evaluaciones y la noche de la curva de eficiencia,
+todos reanudables.
+
+Lo que recibe la política es una sola imagen, la de la cámara de la cabeza del robot, y conviene
+verla para calibrar la dificultad de la tarea. La figura \ref{fig:camara-robot} muestra el primer y
+el último fotograma de una demostración frontal y de una cenital, tomados del conjunto de datos
+definitivo: lo que quede fuera de ese encuadre no existe para la política.
 
 \begin{figure}[htb]
 \centering
-  \includegraphics[width=.7\textwidth]{figuras/simulacion/camara_robot.png}
-  \caption[Vista de la cámara del robot]{Vista de la cámara de cabeza del robot, que es la única
-  entrada visual que recibe la política}
+  \includegraphics[width=.9\textwidth]{figuras/simulacion/camara_robot_dataset.png}
+  \caption[Vista de la cámara del robot]{La única entrada visual de la política: la cámara de la
+  cabeza del robot, $640 \times 480$ píxeles. Arriba, primer y último fotograma de una demostración
+  frontal; abajo, de una cenital. Fotogramas del conjunto de datos definitivo, con el fondo de
+  oficina}
   \label{fig:camara-robot}
 \end{figure}
+
+El repositorio incluye también vídeos de tercera persona de cada política abriendo la válvula, con
+el fondo de oficina, y las figuras de la memoria en formato vectorial junto con los guiones que las
+generan a partir de los ficheros de resultados, de modo que cualquier cifra del capítulo
+\ref{Evaluación} puede regenerarse desde los datos.

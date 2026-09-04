@@ -1,0 +1,161 @@
+\chapter{Reconstrucción fotorrealista mediante Gaussian Splatting}
+\label{Reconstrucción fotorrealista}
+
+Este anexo desarrolla el módulo de reconstrucción fotorrealista de la escena introducido en el
+capítulo \ref{Solución}. Es una \textbf{contribución instrumental} del proyecto, no un objetivo del
+trabajo: da soporte al \textit{pipeline} de captura y generación de datos aportando el fondo sobre
+el que se entrenan y evalúan ambas políticas, pero ninguna conclusión del capítulo
+\ref{Evaluación} depende de sus detalles. Se documenta aquí porque supuso un esfuerzo de
+ingeniería considerable y porque uno de los problemas que planteó invalidó silenciosamente una
+sesión completa de datos antes de detectarse. Se describe con el nivel de detalle necesario para
+reproducirlo, no más; el propio proyecto de reconstrucción conserva la receta paso a paso.
+
+\section{El activo y su integración en la escena}
+
+La herramienta principal es \textbf{fVDB} \cite{williams2024fvdb}, el marco de NVIDIA para
+aprendizaje profundo sobre datos espaciales dispersos, a través de su caja de herramientas de
+captura de la realidad, \textit{fVDB Reality Capture} \cite{fvdb_reality_capture}, que implementa
+la reconstrucción por \textit{Gaussian Splatting} \cite{kerbl2023gaussian} y la exportación a los
+formatos que Isaac Sim lee. Las poses de cámara y la nube de puntos inicial de la que parte la
+reconstrucción las produce \textbf{COLMAP} \cite{schonberger2016sfm}, la referencia en
+\textit{Structure-from-Motion}, compilado con soporte CUDA para la arquitectura de las aceleradoras
+de la estación. El resto es un puñado de guiones propios entre una etapa y la siguiente.
+
+Hubo dos reconstrucciones de la oficina. La primera, el 3 de agosto de 2026, a partir de 101
+fotografías de un teléfono móvil, sirvió para montar y validar el \textit{pipeline} entero,
+incluida una malla de colisión que finalmente no hizo falta —la física de la escena es un plano de
+suelo y la válvula, y el activo se usa solo como fondo visual—. La definitiva, al día siguiente,
+partió de un \textbf{vídeo} de la misma oficina, y es la que llega al conjunto de datos. Sus
+etapas y cifras:
+
+\begin{enumerate}
+	\item \textbf{Fotogramas.} Del vídeo se extraen 1089 fotogramas y se seleccionan 545 con una
+	ventana deslizante que se queda con el más nítido de cada grupo —nitidez medida como la
+	varianza del laplaciano—, en lugar de un umbral global, que descartaría bloques enteros justo
+	donde la cámara giraba deprisa y rompería el emparejamiento secuencial.
+	\item \textbf{Structure-from-Motion.} COLMAP con un único modelo de cámara compartido,
+	extracción y emparejamiento de características en GPU, y reconstrucción incremental:
+	\textbf{538 imágenes registradas} en un solo modelo, 142\,619 puntos tridimensionales, longitud
+	media de traza 8,3 y error de reproyección medio de 1,18 píxeles; después, las imágenes se
+	rectifican a un modelo de cámara sin distorsión.
+	\item \textbf{Escala métrica y vertical.} COLMAP no conoce la escala. Un guion propio estima la
+	vertical a partir de la orientación de las cámaras, ajusta un plano de suelo por RANSAC sobre
+	los puntos más bajos —tras un recorte robusto por percentiles, sin el cual los puntos
+	triangulados a través de ventanas y reflejos inflaban la escena hasta dimensiones absurdas—,
+	rota la escena a $Z$ arriba con el suelo en $Z = 0$ y la escala fijando la altura media de las
+	cámaras en 1,5\,m. Es una escala aproximada, con un error del orden del 5\,\%, suficiente para
+	un fondo. Hacerlo \textbf{antes} de entrenar, y no corregirlo después sobre el activo
+	exportado, es la decisión que evita toda una familia de problemas de matrices.
+	\item \textbf{Reconstrucción.} \texttt{frgs reconstruct} sin normalización de escena —para
+	conservar las unidades—, doscientas épocas sobre las 538 imágenes, 107\,600 pasos en unos
+	treinta minutos en una GPU: \textbf{3\,962\,281 gaussianas}. Un guion propio las reduce después
+	a 2\,144\,018 eliminando las de opacidad inferior a 0,005 —el refinado de la herramienta deja
+	de podar a mitad del entrenamiento— y las de escala desproporcionada, que son pocas, suelen
+	ser artefactos de zonas mal observadas y cuestan en render lo que un tile entero.
+	\item \textbf{Exportación.} \texttt{frgs convert} al formato \textbf{NuRec} de Omniverse, en
+	lugar del formato \textit{ParticleField} más reciente, porque sobre la misma reconstrucción
+	NuRec se ve claramente mejor en Isaac Sim 6.0 y aquí solo importa cómo se ve desde la cámara
+	del robot; la contrapartida es que NVIDIA lo va a retirar.
+	\item \textbf{Envoltura e integración.} Una capa USD propia referencia el activo exportado y lo
+	endereza y coloca —una traslación y una rotación de $-89$\textdegree{} en $X$, verificadas
+	contra el dato: las 538 cámaras quedan a 1,50\,m de altura media y el suelo a 0,58\textdegree{}
+	de la horizontal—, añade un plano de colisión de $10 \times 10$\,m en $Z = 0$ y una escena de
+	física. El parche sobre la biblioteca de fondos del marco lo registra como fondo
+	\texttt{office\_gs}, con una rotación de $+90$\textdegree{} en $Z$ para orientarlo respecto al
+	robot y con variables de entorno para probar otro fichero, escala o pose sin tocar código.
+\end{enumerate}
+
+Cuatro trampas costaron más que el resto del proceso junto, y ninguna produjo un error.
+\textbf{El exportador deja el activo tumbado}: escribe en la primitiva del volumen una «matriz de
+conversión por defecto» pensada para datos con $Y$ arriba, que sobre un dato ya en $Z$ arriba
+aplica una rotación que no hace falta; como esa matriz es su propia inversa, la corrección exacta
+es ponerla a identidad, no buscar ángulos a ojo. \textbf{USD ignora los ajustes de render que el
+activo trae consigo} cuando se referencia desde otra capa, de modo que el fichero de la tarea los
+reaplica como ajustes del simulador cuando el fondo lleva la etiqueta \texttt{nurec}. \textbf{El
+orden del cuaternión} de la pose en el marco es \textit{xyzw}, como dice el nombre del campo y al
+contrario de lo que afirmaba una nota anterior; la identidad es $(0,0,0,1)$, y escribirla como
+\textit{wxyz} tumba el fondo 89\textdegree. Se midió sobre el escenario ya compuesto con un guion
+propio, tras tres intentos fallidos de predecirlo, porque hay tres capas de composición encima del
+fichero de origen y con tres capas conviene medir. Y \textbf{el fondo heredado que existía al
+empezar} —una oficina distinta, exportada con otra herramienta y de la que no se conservaban ni
+las imágenes ni el espacio de trabajo— arrastraba una matriz transpuesta que USD lee como
+proyectiva y que deformaba el activo en cuanto se le aplicaba una pose; es la razón de que se
+capturara de nuevo en lugar de reutilizarlo.
+
+\section{El procedimiento de reproducción sobre demostraciones grabadas}
+
+El fondo no se renderiza durante la teleoperación: cuesta unos 39\,ms por paso de simulación, y
+en las gafas eso es la diferencia entre poder agarrar un radio del volante y no poder. Las
+demostraciones se graban en la escena diáfana y el fondo se aplica después, sin gafas y sin nadie
+delante, con \texttt{rerender\_demos.py}: reproduce cada demostración con el fondo cargado, vuelve
+a grabar la imagen de la cámara de la cabeza y escribe un nuevo HDF5 con la misma estructura. Cuesta
+unos doce minutos por sesión de veinticinco demostraciones, y el fichero resultante ocupa
+aproximadamente el doble que el original —110\,MB por demostración frente a 60— porque la oficina
+comprime peor que un plano gris. Se comprobó que el fondo \textbf{no perturba la física}: la misma
+demostración dura los mismos pasos con y sin él. El éxito se recalcula sobre la reproducción, no se
+copia del original, y se verifica con \texttt{compare\_rerender.py} que cada demostración conserva
+su número de pasos, cruza el umbral y ha cambiado de imagen.
+
+\section{La divergencia de estado y su corrección}
+
+La primera versión reproducía las acciones grabadas en lazo abierto, y \textbf{no reproducía la
+demostración}. Se descubrió el 21 de agosto y había invalidado ya la salida de una sesión entera:
+de veinticinco demostraciones que abrieron la válvula al teleoperar, solo dieciséis la abrían al
+reproducirse, y la peor pasaba de 191,1\textdegree{} a 113,7\textdegree. Sobre la primera sesión,
+frontal y sin agarre, la misma reproducción había perdido una de veinticinco y había parecido
+correcta.
+
+La opción \texttt{--validate\_states} de la herramienta, que compara en cada paso el estado
+grabado con el reproducido, localizó la causa con exactitud: la divergencia aparece en el
+\textbf{paso 1}, no gradualmente, y no en las posiciones articulares sino en las
+\textbf{velocidades}, en los índices 14 y 18 —el cabeceo y el alabeo del tobillo derecho—. Con eso
+la explicación es completa: el HDF5 almacena la acción de veintitrés dimensiones, que gobierna los
+brazos y los canales de mando, pero \textbf{las piernas las gobierna la política de equilibrio en
+lazo cerrado y no se reproducen: se vuelven a ejecutar}. Aterrizan en otro sitio desde el primer
+paso, el tronco acaba ligeramente distinto, las muñecas agarran el radio por otro punto y al final
+del episodio el volante se queda hasta 80\textdegree{} corto. Empujar de frente con la mano abierta
+tolera esa deriva; agarrar un radio desde arriba, no.
+
+La corrección no es hacer determinista la física, sino \textbf{no simular}: el HDF5 graba el
+estado completo de la escena en cada paso, de modo que la herramienta lo impone tras cada
+\texttt{step()} en lugar de dejar correr los controladores. Medido sobre las cincuenta
+demostraciones de las sesiones 02 y 03: \textbf{50 de 50 reproducen, con una diferencia máxima de
+1,1\textdegree{}} en el ángulo final, frente a los 81\textdegree{} anteriores, y sin fotogramas
+negros. El residuo de 1,1\textdegree{} es un paso de física: el fotograma se renderiza dentro de
+\texttt{step()}, justo antes de imponer el estado. Dos trampas de implementación: hay que usar
+\texttt{env.scene.reset\_to()} y nunca \texttt{env.reset\_to()}, que además exporta un episodio y
+\textbf{vuelve a sortear la disposición de la válvula en cada paso}; y en algunos caminos los
+datos de la articulación llegan como \textit{arrays} de Warp, que no admiten indexado escalar y
+fallan después de dos minutos de carga, por lo que se normalizan antes. La opción \texttt{--libre}
+conserva el comportamiento antiguo, solo para comparar.
+
+\section{Parámetros y configuración}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Parámetros del fondo fotorrealista y versiones de las herramientas}
+	\label{tab:gs-parametros}
+	\makebox[\textwidth]{
+		\begin{tabular}{|l|p{9.6cm}|}
+			\cline{1-2}
+			Parámetro o herramienta & Valor \\ \hline
+			\texttt{OFFICE\_GS\_USD} & Ruta del activo; por defecto el de la oficina de Madrid reconstruida a partir del vídeo \\
+			\texttt{OFFICE\_GS\_ROT}, \texttt{\_POS}, \texttt{\_SCALE} & Pose y escala del fondo, cuaternión en orden \textit{xyzw}; por defecto $+90$\textdegree{} en $Z$, sin traslación, escala 1 \\
+			\texttt{OFFICE\_GS\_LIGHT} & Intensidad de la luz de cúpula, 3000 por defecto. Solo se lee con el fondo fotorrealista; \textbf{todas} las reproducciones la dejan sin fijar, porque fijarla en una sesión y no en otra parte el conjunto de datos en dos exposiciones \\
+			Ajustes de render & Los que trae el activo NuRec, reaplicados por la tarea como ajustes del simulador \\ \hline
+			fVDB & \texttt{fvdb-core} 0.5.1 y \texttt{fvdb-reality-capture} 0.5.0, sobre PyTorch 2.11 con CUDA 12.8, en un entorno propio con Python 3.12 \\
+			COLMAP & 4.2 de desarrollo, compilado con CUDA para la arquitectura \texttt{sm\_120}; el de la distribución no trae CUDA y sus opciones tienen otros nombres \\
+			Isaac Sim & 6.0, con la transmisión de geometría activada, sin la cual las gaussianas se muestran como esferas grises \\ \hline
+		\end{tabular}
+	}
+\end{table*}
+
+Los guiones implicados, todos en el repositorio:
+
+\begin{description}
+	\item[\texttt{rerender\_demos.py}] la reproducción con el estado grabado impuesto.
+	\item[\texttt{compare\_rerender.py}] la verificación de la reproducción contra el original.
+	\item[\texttt{hdf5\_to\_video.py}] la revisión a ojo, sin arrancar el simulador.
+	\item[\texttt{measure\_gs\_pose.py}] la medida de la pose real del fondo en el escenario compuesto.
+	\item[\texttt{capture\_viewport.py}] la comprobación del render, antes de culpar a cualquier otra cosa.
+\end{description}

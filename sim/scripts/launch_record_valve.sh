@@ -122,7 +122,7 @@ if [ "${MONITOR:-1}" = "1" ]; then
 --/exts/omni.kit.livestream.app/primaryStream/targetFps=${TARGET_FPS:-60} \
 --/exts/omni.kit.livestream.app/primaryStream/signalPort=${SIGNAL_PORT:-49120} \
 --/exts/omni.kit.livestream.app/primaryStream/streamPort=${STREAM_PORT:-48020} \
---/exts/omni.kit.livestream.app/primaryStream/publicIp=${STREAM_PUBLIC_IP:-172.22.41.51}"
+--/exts/omni.kit.livestream.app/primaryStream/publicIp=${STREAM_PUBLIC_IP:?Define STREAM_PUBLIC_IP con la IP de la estación que ve el cliente WebRTC (se ha quitado del repositorio)}"
 else
   MONITOR_ARGS=""
   KIT_MONITOR=""

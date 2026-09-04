@@ -42,7 +42,7 @@ Other relevant paths on the host:
 | `~/datasets` | → `/datasets`. Recorded HDF5 and converted LeRobot datasets |
 | `~/models` | → `/models`. Checkpoints. `isaaclab_arena/static_apple_tutorial/` is NVIDIA's reference fine-tune |
 | `~/eval` | → `/eval`. Logs and `arena_extras/` launch scripts |
-| `~/TFM/*.md` | Prior working notes — see "Existing notes" below |
+| `docs/notas/` | Prior working notes, copied from `~/TFM` — see "Existing notes" below |
 
 ## Everything runs inside the container
 
@@ -337,23 +337,23 @@ render 1 has pixels (max 245).
 `ufw` is active with `DEFAULT_INPUT_POLICY=DROP`, so a SYN to a port with no rule is dropped in
 silence — no error, no rejection, no log line. `--livestream 1` ("WebRTC public") pins
 **signalPort=49100/tcp** and **streamPort=47998/udp** in `app_launcher.py:662-666`; the rules on
-this host are for **49110/48010** and **49120/48020**, scoped to `172.22.41.0/24`. Either open
+this host are for **49110/48010** and **49120/48020**, scoped to `<SUBRED_LAN>`. Either open
 49100+47998 or override the ports via `--kit_args` to ones already allowed — the launch scripts
 already do the latter:
 
 ```
 --/exts/omni.kit.livestream.app/primaryStream/signalPort=49120
 --/exts/omni.kit.livestream.app/primaryStream/streamPort=48020
---/exts/omni.kit.livestream.app/primaryStream/publicIp=172.22.41.51
+--/exts/omni.kit.livestream.app/primaryStream/publicIp=<IP_ESTACION>
 ```
 
 Do not diagnose this from the workstation: a probe from a Docker bridge namespace
-(172.17.0.x → 172.22.41.51) reports the ports open even when the LAN path is dropped. That is a
+(172.17.0.x → <IP_ESTACION>) reports the ports open even when the LAN path is dropped. That is a
 false positive; container-to-host traffic does not take the same chain. Test from the laptop.
 
 Signalling is TCP, **media is UDP**. An SSH tunnel forwards TCP only, so connecting the client to
 `127.0.0.1` through a tunnel negotiates the session and then shows black forever. Point the client
-at `172.22.41.51` directly.
+at `<IP_ESTACION>` directly.
 
 `/eval/arena_extras/stream_valve.py` is the standalone viewer: builds `g1_valve`, holds the robot
 in a stable standing pose, frames the viewport on robot + valve, and steps until killed.
@@ -374,12 +374,14 @@ Also modified: `background_library.py`, `object_library.py` (the `Valve` asset),
 `g1_static_apple_gr00t_closedloop_config.yaml`. **The valve work itself is uncommitted** — getting
 it onto a branch is worth doing early.
 
-## Existing notes (host paths, not in this repo)
+## Existing notes (now in `docs/notas/`, copied from `~/TFM`)
 
-- `~/TFM/TELEOP_G1_VALVE.md` — launch guide for teleoperating `g1_valve`, verified 2026-07-23
-- `~/TFM/ESTADO_TELEOP_XR.md` — state as of 2026-08-04, incl. the open Gaussian-Splatting XR bug
+- `docs/notas/TELEOP_G1_VALVE.md` — launch guide for teleoperating `g1_valve`, verified 2026-07-23
+- `docs/notas/ESTADO_TELEOP_XR.md` — state as of 2026-08-04, incl. the open Gaussian-Splatting XR bug
   and the list of already-discarded hypotheses (do not re-test them)
-- `~/TFM/WBC.md`, `~/TFM/VISOR_ISAAC_SIM_VNC.md` — whole-body control and VNC viewer notes
+- `docs/notas/WBC.md`, `docs/notas/VISOR_ISAAC_SIM_VNC.md` — whole-body control and VNC viewer notes
+- `docs/notas/thesis_plan_2026-07-07.md` — the initial plan (real robot, ACT only); Anexo B tells the rest
+- `reconstruction/` — the office Gaussian-Splatting pipeline (fVDB + COLMAP), from `~/GS_fvdb`
 - `~/TFM/.claude/skills/` — existing skills: `isaac-sim-troubleshooting`, `g1-troubleshooting`,
   `physical-ai-tutor`
 
@@ -520,7 +522,7 @@ Four things cost hours and will cost them again:
   read what the converter writes.
 - **CloudXR owns port 49100**, hardcoded, which is also `--livestream 1`'s default signal port.
   On this shared workstation the livestream has to move to **49120/48020** (allowed in ufw for
-  `172.22.41.0/24`). A black WebRTC stream during teleoperation is usually this.
+  `<SUBRED_LAN>`). A black WebRTC stream during teleoperation is usually this.
 
 ### The Madrid office splat is in, and it goes in by re-render
 

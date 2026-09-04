@@ -1,34 +1,125 @@
 \chapter{Seguimiento de proyecto fin de máster}
 \label{Seguimiento de proyecto fin de máster}
 
-Seguimiento del trabajo real, por oposición a la simulación de gestión empresarial que recoge el
-capítulo \ref{Gestión de proyecto software}.
+Este anexo recoge el seguimiento del trabajo real, por oposición a la simulación de gestión
+empresarial del capítulo \ref{Gestión de proyecto software}: cómo se hizo el seguimiento, qué se
+planificó al principio y qué se ejecutó de verdad, con las desviaciones y su causa.
 
 \section{Forma de seguimiento}
 
-Mecanismo de seguimiento empleado: reuniones con el tutor, documentación continua del estado del
-proyecto en el propio repositorio y registro de decisiones con su fecha y su justificación.
+El seguimiento se apoyó en cuatro instrumentos, todos con fecha.
+
+\textbf{Notas de trabajo.} Cada fase de investigación o de puesta en marcha se cerró con una nota
+en el directorio de trabajo, fechada y con su estado: el plan del trabajo en sus dos versiones (6 y
+7 de julio), la investigación sobre control de cuerpo completo y teleoperación con las gafas (14 de
+julio), el acceso remoto y el visor de la simulación (13 y 27 de julio), la guía de teleoperación
+de la tarea (verificada el 23 de julio), la reconstrucción de la oficina (30 de julio y 3--4 de
+agosto) y el estado de la teleoperación con las gafas físicas (4 de agosto). Cada nota dice qué
+funciona, qué está parcheado y qué hipótesis se han descartado, para no volver a probarlas.
+
+\textbf{El cuaderno de bitácora del repositorio.} Desde el 17 de agosto, un único fichero en la
+raíz del repositorio recoge el estado del proyecto, las decisiones con su fecha y su
+justificación, y las reversiones cuando las hubo. Es el documento que se actualiza al final de
+cada sesión de trabajo y el que se lee al principio de la siguiente.
+
+\textbf{El control de versiones.} El historial de confirmaciones descrito en el anexo
+\ref{Control de versiones}, con un incremento verificable por confirmación.
+
+\textbf{Las sesiones de trabajo con el asistente de programación.} El desarrollo se hizo con el
+asistente de inteligencia artificial que la declaración inicial de esta memoria describe, y cada
+sesión queda registrada con su fecha: dieciocho sesiones entre el 7 de agosto y el 4 de septiembre,
+repartidas entre el directorio de trabajo, el repositorio y la reconstrucción de la oficina. Son,
+en la práctica, el registro más fino de qué se intentó, qué falló y qué se decidió, y la fuente de
+la que se han reconstruido las fechas de este anexo.
 
 \section{Planificación inicial}
 
-Planificación prevista al comienzo del trabajo, con sus hitos.
+El plan de partida es el del 6--7 de julio de 2026, que a su vez revisaba un borrador anterior. El
+borrador original planteaba un trabajo de nueve meses con una comparación a tres bandas entre
+aprendizaje por imitación, refuerzo y refuerzo residual sobre dos simuladores. La revisión de julio
+lo redujo a lo que cabía en \textbf{dos meses} con \textbf{acceso confirmado al G1 físico}:
+
+\begin{itemize}
+	\item Grabar demostraciones teleoperadas \textbf{sobre el robot real} abriendo y cerrando una
+	válvula, con el tren inferior sostenido por el controlador de equilibrio de serie y solo los
+	brazos gobernados por la política.
+	\item Entrenar \textbf{una política ACT} con las herramientas de Unitree para LeRobot y su
+	sistema de teleoperación, siguiendo la receta que el fabricante ya había validado en sus
+	propios conjuntos de datos.
+	\item Evaluar la tasa de éxito \textbf{sobre el robot}, con variación del ángulo inicial de la
+	válvula, en unos cincuenta a cien episodios.
+	\item Como ampliaciones si sobraba tiempo: la mano diestra Inspire y una comparación con otros
+	métodos, GR00T entre ellos, explícitamente descartados como núcleo por «más pesados y más
+	exigentes en datos».
+	\item Fuera de alcance: el aprendizaje por refuerzo, la comparación entre simuladores y la
+	locomanipulación completa. \textbf{La simulación quedaba limitada a comprobaciones cualitativas},
+	con el argumento de que la transferencia de simulación a realidad en manipulación con
+	contacto sostenido era un problema abierto.
+\end{itemize}
+
+El plan tenía ocho semanas: alcance y pruebas del controlador de serie (1), captura del conjunto de
+datos (2), primer entrenamiento y despliegue en el robot (3), iteración y primera demostración (4),
+evaluación formal (5), ampliación o análisis de fallos (6), figuras y vídeos (7) y redacción (8).
 
 \section{Planificación final}
 
-Planificación realmente ejecutada y análisis de las desviaciones. Se documentan aquí las dos
-decisiones que más alteraron el plan: la reducción del conjunto de datos previsto una vez se
-comprobó que el tamaño no era el factor limitante, y la incorporación del fondo fotorrealista, que
-inicialmente estaba fuera de alcance.
+Lo ejecutado se aleja del plan en su premisa central y coincide con él en casi todo lo demás. La
+figura del capítulo \ref{Gestión de proyecto software} da la versión simulada; lo real fue esto.
 
-\begin{table*}[ht]
+\textbf{Julio: investigación y puesta en marcha.} Se investigó la pila de control de cuerpo completo
+y teleoperación con las gafas —el sistema de NVIDIA para control de cuerpo completo con el
+servicio de PICO y MuJoCo como simulador de pruebas—, y se descartó en favor de Isaac Lab Arena,
+que traía integrados el \textit{embodiment} del G1 con su política de equilibrio, la teleoperación
+en realidad mixta, la grabación y la evaluación. Se resolvió el acceso remoto a la estación y el
+visor de la simulación, se verificó la teleoperación de la tarea con el emulador web de las gafas
+(23 de julio) y se cargó por primera vez un fondo fotorrealista en la escena (27 de julio).
+
+\textbf{Del 30 de julio al 4 de agosto: la reconstrucción de la oficina.} Primer intento con la
+herramienta de captura de NVIDIA, reconstrucción a partir de 101 fotografías (3 de agosto) y,
+al día siguiente, la definitiva a partir de vídeo (anexo \ref{Reconstrucción fotorrealista}). El 4
+de agosto quedaron conectadas las gafas físicas, con un problema abierto entre el fondo
+fotorrealista y la realidad mixta que acabaría resolviéndose no en la escena de captura sino
+aplicando el fondo después.
+
+\textbf{Del 17 al 25 de agosto: el desarrollo.} Nueve días de trabajo concentrado en los que se
+tomaron y, en varios casos, se revirtieron las decisiones de diseño (tabla \ref{tab:desviaciones}):
+la integración de la válvula y la primera demostración con imagen (18), el ensayo previo del
+\textit{pipeline} completo (19--20), el fondo aplicado por reproducción y su corrección (20--21),
+las cuatro sesiones de captura del conjunto definitivo (21--22), la comparación principal (22 y
+24) y los dos experimentos secundarios (25).
+
+\textbf{Del 25 de agosto al 5 de septiembre: la memoria}, sobre la plantilla de la titulación,
+con el borrador enviado al tutor para su revisión.
+
+\begin{table*}[!htbp]
 	\centering
 	\caption{Desviaciones entre la planificación inicial y la final}
 	\label{tab:desviaciones}
+	\small
 	\makebox[\textwidth]{
-		\begin{tabular}{|p{5cm}|p{5cm}|p{5cm}|}
+		\begin{tabular}{|p{3.4cm}|p{3.4cm}|p{7.6cm}|}
 			\cline{1-3}
 			Previsto & Realizado & Causa de la desviación \\ \hline
-			[PENDIENTE] & & \\ \hline
+			Grabar y evaluar sobre el G1 físico & Todo en simulación & Se disponía del robot, pero no de un espacio acondicionado para experimentar con seguridad ni del \textit{firmware}, los controladores y el entorno de despliegue para inferencia en tiempo real \\
+			Una sola política, ACT & Comparación ACT frente a GR00T & Arena integra GR00T para este mismo robot; la comparación pasó a ser la pregunta del trabajo \\
+			Herramientas de Unitree para LeRobot y su teleoperación & Isaac Lab Arena, CloudXR y PICO 4 Ultra & Con la simulación cambió la pila: Arena trae \textit{embodiment}, equilibrio, teleoperación, grabación y evaluación \\
+			50--100 demostraciones; después, 400 (17 de agosto) & 100 & La curva de eficiencia mostró que 25 ya saturan; grabar más del mismo reparto no mejoraba nada \\
+			Fondo fotorrealista fuera de alcance (17 de agosto) & Dentro, aplicado por reproducción (19 de agosto) & Reduce la distancia entre las imágenes de entrenamiento y las de un despliegue; su coste de render se evita aplicándolo después \\
+			Robot de pie bajo su controlador de equilibrio & Pelvis fijado (18 de agosto) & El par de reacción del volante giraba al robot entero durante la teleoperación \\
+			Empujar el volante con la mano abierta & Agarrar un radio con el gatillo (21 de agosto) & Más defendible en el contexto industrial; obligó a fijar el gesto y a descartar la primera sesión como datos \\
+			Presupuesto de episodio de 15\,s & 30\,s en captura, 20\,s en evaluación & Un episodio que agota el tiempo no se escribe; el presupuesto solo alarga los fallos \\
+			100 tiradas por política & 200, en dos bloques & Con 100 la diferencia quedaba en $p = 0{,}134$; doblar la muestra es lo que corresponde ante una diferencia pequeña \\
+			Mano diestra Inspire como ampliación & Descartada & El modelo de G1 con esa mano rompería el equilibrio, el \textit{retargeting} y el espacio de 43 articulaciones \\
+			Plazo de dos meses desde julio & Memoria en septiembre & La puesta en marcha de la pila de realidad mixta y la reconstrucción consumieron julio y principios de agosto \\ \hline
 		\end{tabular}
 	}
 \end{table*}
+
+Dos desviaciones alteraron el plan más que las demás. La primera es \textbf{el paso a la
+simulación}, que cambió la pila entera pero hizo posible lo que el plan original no habría podido
+ofrecer: doscientas tiradas emparejadas por política, seis entrenamientos sobre subconjuntos
+estratificados y una medida de latencia en lazo cerrado, todo ello en noches de máquina. La segunda
+es \textbf{la reducción del conjunto de datos} de cuatrocientas a cien demostraciones, que no fue
+una renuncia sino una consecuencia de medir: la curva de eficiencia dijo que el tamaño no era el
+factor limitante, y el tiempo previsto para grabar se dedicó a los experimentos que sí respondían a
+la pregunta.

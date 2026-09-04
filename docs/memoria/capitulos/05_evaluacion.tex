@@ -1,15 +1,18 @@
 \chapter{Evaluación}
 \label{Evaluación}
 
-Este capítulo demuestra la validez de la solución construida. Describe primero el protocolo
-experimental —qué se mide, cómo se mide y por qué el diseño permite atribuir las diferencias
-observadas al método y no al montaje— y analiza después los resultados de los tres experimentos
-realizados: la comparación principal entre las dos políticas, la curva de eficiencia en datos y la
-medida de latencia de inferencia.
+Este capítulo demuestra la validez de la solución construida y responde a la pregunta del trabajo.
+Describe primero el protocolo experimental —qué se mide, cómo se mide y por qué el diseño permite
+atribuir las diferencias observadas al método y no al montaje— y analiza después los resultados de
+los tres experimentos realizados: la comparación principal entre las dos políticas sobre
+doscientas tiradas emparejadas, la curva de eficiencia en datos y la medida de latencia de
+inferencia en lazo cerrado.
 
 Se ha puesto especial cuidado en separar lo que los datos sostienen de lo que sugieren. Varias de
 las conclusiones de este capítulo son deliberadamente más débiles de lo que las cifras brutas
-invitarían a escribir, y en cada caso se explica por qué.
+invitarían a escribir, y en cada caso se explica por qué. Todas las cifras proceden de los ficheros
+de resultados que el simulador escribe por episodio, y las figuras se regeneran a partir de ellos
+con los guiones del repositorio.
 
 
 \section{Proceso de evaluación}
@@ -18,69 +21,117 @@ invitarían a escribir, y en cada caso se explica por qué.
 
 \subsubsection{Métricas}
 
-Se emplean dos métricas, ambas registradas automáticamente por el simulador:
+Se emplean dos métricas, ambas registradas automáticamente por el simulador en cada episodio:
 
 \begin{description}
-	\item[tasa de éxito]: proporción de episodios en los que la válvula supera media vuelta de
-	apertura. Es la métrica principal.
-	\item[tasa de movimiento de la articulación]: proporción de episodios en los que la válvula
-	llega a moverse, con independencia de cuánto. Distingue el fallo por no completar el giro del
-	fallo por no encontrar siquiera la válvula.
+	\item[Tasa de éxito.] Proporción de episodios en los que el volante supera media vuelta de
+	apertura —180\textdegree— dentro del presupuesto de tiempo. El episodio termina en el mismo
+	paso en que se supera. Es la métrica principal, y es binaria: un episodio que se queda en
+	178\textdegree{} cuenta lo mismo que uno que no pasa de 60\textdegree.
+	\item[Tasa de movimiento de la articulación.] Proporción de episodios en los que el volante
+	llega a moverse más de un 5\,\% de su recorrido, con independencia de cuánto. Distingue el
+	fallo por no completar el giro del fallo por no llegar siquiera a la válvula.
 \end{description}
 
-Se acompañan del ángulo final alcanzado por el volante, que permite ver la distribución de los
-fallos en lugar de reducirlos a un contador.
+Se acompañan de dos magnitudes continuas que el fichero de resultados permite recuperar y que la
+tasa de éxito, por ser binaria, esconde: el \textbf{ángulo máximo alcanzado} por el volante en cada
+episodio, que convierte el contador de fallos en una distribución, y el \textbf{paso en el que se
+cruza el umbral}, que mide cuánto tarda cada política en resolver la tarea cuando la resuelve.
 
 \subsubsection{El banco es común a las dos políticas}
 
 Las dos políticas se sirven como procesos independientes que implementan la misma interfaz de
 comunicación con el simulador. El comando que lanza la evaluación es idéntico para ambas hasta el
-último carácter: mismo entorno, mismo \textit{embodiment}, misma semilla y mismo presupuesto de
-episodio. Lo único que cambia es qué proceso atiende la petición. Cualquier diferencia en la tasa de
-éxito procede, por construcción, de la política.
+último carácter: mismo entorno, mismo \textit{embodiment}, mismo fondo, misma semilla, mismo
+presupuesto de episodio y misma instrucción en lenguaje natural. Lo único que cambia es qué proceso
+atiende la petición en el puerto. Cualquier diferencia en la tasa de éxito procede, por
+construcción, de la política. La tabla \ref{tab:protocolo} fija los parámetros.
+
+\begin{table*}[ht]
+	\centering
+	\caption{Parámetros fijos de toda evaluación}
+	\label{tab:protocolo}
+	\makebox[\textwidth]{
+		\begin{tabular}{|l|p{9.4cm}|}
+			\cline{1-2}
+			Parámetro & Valor \\ \hline
+			Entorno y \textit{embodiment} & \texttt{g1\_valve}, \texttt{g1\_wbc\_agile\_joint} (43 articulaciones + 7 canales de base) \\
+			Fondo & Oficina reconstruida, el mismo con el que se generaron las imágenes de entrenamiento \\
+			Condiciones iniciales & Disposición sorteada al 50\,\% y posición perturbada $\pm(4,6,3)$\,cm, a partir de la semilla \\
+			Semillas & 42 (bloque 1) y 7 (bloque 2); 100 episodios por bloque y política \\
+			Presupuesto de episodio & 20\,s, es decir 1000 pasos a 50\,Hz \\
+			Éxito & Apertura mayor que 0,5; el episodio termina en el paso en que se supera \\
+			Bloque de acciones & 40 pasos por inferencia, para ambas políticas \\
+			Instrucción & \textit{turn the handwheel to open the valve} \\
+			Puntos de control & GR00T: paso 10\,000 del ajuste fino; ACT: paso 20\,000 \\ \hline
+		\end{tabular}
+	}
+\end{table*}
 
 \subsubsection{El diseño es emparejado}
 
-Las condiciones iniciales de cada episodio —posición y orientación de la válvula— se generan a
-partir de una semilla fija, de modo que la tirada $i$ de una política se enfrenta exactamente a la
-misma escena que la tirada $i$ de la otra. Se ha verificado que las poses registradas coinciden
-hasta el noveno decimal.
+Las condiciones iniciales de cada episodio —disposición y posición de la válvula— se generan a
+partir de la semilla, de modo que la tirada $i$ de una política se enfrenta exactamente a la misma
+escena que la tirada $i$ de la otra. No es una suposición: las poses de la válvula que ambos
+ficheros de resultados registran en el estado inicial de cada episodio coinciden con diferencia
+máxima exactamente cero en las doscientas tiradas. Cada política vio la misma válvula, en la misma
+posición, en el mismo orden.
 
 Esto convierte el experimento en un diseño de medidas emparejadas, y el contraste apropiado es la
-\textbf{prueba exacta de McNemar} sobre los casos discordantes. Emplear una comparación de
-proporciones independientes desaprovecharía la información del emparejamiento y sobreestimaría la
-incertidumbre. Los intervalos de confianza de las tasas individuales se calculan por el método de
-Wilson, que a diferencia del intervalo normal se mantiene dentro de $[0,1]$ con proporciones
-próximas a los extremos, que es justo donde caen estos resultados.
+\textbf{prueba exacta de McNemar} sobre los casos discordantes: solo los episodios en los que una
+política acierta y la otra falla llevan información sobre la diferencia entre ambas. Una comparación
+de proporciones independientes desaprovecharía el emparejamiento y sobreestimaría la incertidumbre.
+Los intervalos de confianza de las tasas individuales se calculan por el método de Wilson, que a
+diferencia del intervalo normal se mantiene dentro de $[0,1]$ con proporciones próximas a los
+extremos, que es justo donde caen estos resultados. Para el efecto de la disposición, que compara
+dos grupos distintos de episodios dentro de una misma política, se emplea la prueba exacta de
+Fisher. Ningún contraste presupone normalidad; con tamaños de muestra de decenas de casos
+discordantes, las versiones exactas son las que corresponden.
 
 \subsection{Casos de prueba}
 
-\subsubsection{Ensayo previo de la cadena}
+\subsubsection{Ensayo previo del \textit{pipeline}}
 
-Pasada completa con veinticinco demostraciones de una sola disposición, con el único objetivo de
-recorrer la cadena entera con datos reales y localizar dónde se rompe. Ambas políticas alcanzaron
-diez éxitos de diez, lo que \textbf{no distingue nada}: sirve para afirmar que la cadena funciona,
-no para comparar métodos.
+Pasada completa con las veinticinco demostraciones de la primera sesión —una sola disposición,
+sin agarre, sin perturbación de la posición—, con el único objetivo de recorrer el \textit{pipeline} entero
+con datos reales y localizar dónde se rompe antes de grabar el conjunto definitivo. Se evaluaron
+tres servidores con el mismo cliente: la reproducción de las acciones grabadas, como cota
+superior, resolvió 3 de 3; GR00T, 10 de 10 tanto a mil como a diez mil pasos de ajuste fino; ACT,
+10 de 10. Ambas políticas abrían la válvula más deprisa que la demostración de la que aprendieron
+—183 y 208 pasos de media frente a los 256 de la reproducción— y con un giro monótono el 95--98\,\%
+del tiempo, lo que descarta que fueran un reloj memorizado. Pero \textbf{un 10 de 10 contra un 10
+de 10 no distingue nada}, que es exactamente lo que una comparación tiene que hacer: con la válvula
+siempre en la misma pose y el mismo reinicio, la tarea era trivial. El ensayo acredita que el \textit{pipeline}
+funciona; no compara métodos. Sí produjo tres decisiones que cambiaron el conjunto definitivo: el
+agarre, el margen sobre el umbral de éxito y la iluminación de evaluación, descritas en el capítulo
+\ref{Solución}.
 
 \subsubsection{Comparación principal}
 
-Doscientas tiradas por política, en dos bloques de cien con semillas distintas, sobre las políticas
-entrenadas con las cien demostraciones definitivas.
+Doscientas tiradas por política sobre las políticas entrenadas con las cien demostraciones
+definitivas, en dos bloques de cien con semillas distintas. El segundo bloque se añadió cuando el
+primero dejó la diferencia entre políticas en $p = 0{,}134$: doblar la muestra es lo que
+corresponde ante una diferencia pequeña, y los dos bloques son sorteos distintos de las mismas
+distribuciones, lo que hace legítimo agruparlos.
 
 \subsubsection{Curva de eficiencia en datos}
 
 Reentrenamiento de ambos métodos sobre subconjuntos \textbf{estratificados y anidados} de
-veinticinco y cincuenta demostraciones, y evaluación de las seis configuraciones resultantes sobre
-las mismas cien condiciones iniciales. La estratificación es esencial: las primeras sesiones
-grabadas se escoraron hacia la disposición difícil, de modo que tomar «las primeras veinticinco»
-habría confundido \textit{menos datos} con \textit{más disposición difícil} y la curva habría caído
-por el motivo equivocado.
+veinticinco y cincuenta demostraciones —12 frontales y 13 cenitales, 25 y 25— con la misma receta
+y la misma semilla de entrenamiento que el conjunto completo, y evaluación de las seis
+configuraciones resultantes sobre las mismas cien condiciones iniciales del primer bloque. La
+estratificación es esencial: las sesiones 02 y 03 se escoraron hacia la disposición difícil (19
+frontales frente a 31 cenitales), de modo que tomar «las primeras veinticinco» habría confundido
+\textit{menos datos} con \textit{más disposición difícil} y la curva habría caído por el motivo
+equivocado.
 
 \subsubsection{Latencia de inferencia}
 
-Medida del tiempo de cálculo de cada bloque de acciones en lazo cerrado dentro del simulador, con
-las observaciones reales y no con entradas sintéticas, y contraste contra el presupuesto que impone
-el lazo de control.
+Medida del tiempo de cálculo de cada bloque de acciones \textbf{en lazo cerrado dentro del
+simulador}, con las observaciones reales que la política recibe y no con un tensor sintético,
+sincronizando la GPU antes y después de cada llamada. Diez tiradas por política, y se descarta la
+primera llamada de cada una, que es compilación de núcleos. El presupuesto contra el que se
+contrasta lo impone el lazo de control: un bloque de cuarenta acciones cada 0,8 segundos.
 
 
 \section{Análisis de resultados}
@@ -91,17 +142,28 @@ el lazo de control.
 \centering
   \includegraphics[width=\textwidth]{figuras/resultados/fig1_curvas_perdida.pdf}
   \caption[Convergencia del entrenamiento]{Convergencia del entrenamiento de ambos métodos, en
-  paneles separados}
+  paneles separados porque las dos pérdidas no son comparables entre sí}
   \label{fig:perdida}
 \end{figure}
 
-Ambos entrenamientos convergen. Conviene subrayar, no obstante, que la pérdida en aprendizaje por
-imitación es un error de regresión contra las acciones del operador: que baje significa que la red
-copia bien las demostraciones, no que el robot abra la válvula. Una política puede exhibir una
-pérdida excelente y una tasa de éxito nula si aprende la media de las demostraciones. La evidencia
-de aprendizaje es la tasa de éxito en simulación; las curvas solo acreditan que la optimización
-convergió. Las dos pérdidas, además, no son comparables entre sí, y por eso van en paneles
-separados.
+Ambos entrenamientos convergen, y las dos curvas de la figura \ref{fig:perdida} cuentan cosas
+distintas. La de GR00T cae de 1,68 a 0,35 en los primeros cien pasos y a 0,10 en los primeros mil;
+los nueve mil restantes la llevan a 0,064. Es el perfil esperable de un ajuste fino: el modelo de
+partida ya sabía mover este robot —se parte del ajuste de NVIDIA sobre el mismo \textit{embodiment}
+y la misma cámara— y lo que aprende en los primeros cientos de pasos es la tarea, no el cuerpo. La
+de ACT parte de 7,2, baja a escalones durante los primeros cinco mil pasos y después se aplana: la
+segunda mitad del entrenamiento la mueve de unos 0,20 a 0,169. Veinte mil pasos son
+aproximadamente 31 épocas sobre las cien demostraciones, y la mitad final apenas cambia la
+pérdida; se conservó el número de pasos del ensayo previo para no introducir una variable.
+
+Conviene subrayar, no obstante, lo que ninguna de las dos curvas demuestra. La pérdida en
+aprendizaje por imitación es un error de regresión contra las acciones del operador: que baje
+significa que la red copia bien las demostraciones, no que el robot abra la válvula. Una política
+puede exhibir una pérdida excelente y una tasa de éxito nula si aprende la media de las
+demostraciones, y las dos pérdidas —\textit{flow matching} en un caso, L1 sobre acciones en el
+otro— no son comparables entre sí, por lo que van en paneles separados. La evidencia de aprendizaje
+es la tasa de éxito en simulación; las curvas solo acreditan que la optimización convergió y que,
+como se verificó comparando los pesos con los del modelo de partida, algo cambió de verdad.
 
 \subsection{Comparación principal}
 
@@ -110,11 +172,11 @@ separados.
 	\caption{Resultado sobre doscientas tiradas por política}
 	\label{tab:resultado-principal}
 	\makebox[\textwidth]{
-		\begin{tabular}{|l|c|c|c|c|c|}
-			\cline{1-6}
-			Política & Tiradas & Éxito & IC 95\,\% & Movió la válvula & Ángulo medio \\ \hline
-			GR00T N1.7 & 200 & \textbf{92\,\%} (185/200) & 88--95\,\% & 100\,\% & 177\textdegree \\
-			ACT & 200 & \textbf{86\,\%} (172/200) & 81--90\,\% & 100\,\% & 173\textdegree \\ \hline
+		\begin{tabular}{|l|c|c|c|c|c|c|}
+			\cline{1-7}
+			Política & Tiradas & Éxito & IC 95\,\% & Bloque 1 / 2 & Movió la válvula & Ángulo medio \\ \hline
+			GR00T N1.7 & 200 & \textbf{92\,\%} (185/200) & 88--95\,\% & 91 / 94 & 100\,\% & 177\textdegree \\
+			ACT & 200 & \textbf{86\,\%} (172/200) & 81--90\,\% & 83 / 89 & 100\,\% & 173\textdegree \\ \hline
 		\end{tabular}
 	}
 \end{table*}
@@ -123,21 +185,58 @@ separados.
 \centering
   \includegraphics[width=\textwidth]{figuras/resultados/fig2_tasa_exito.pdf}
   \caption[Tasa de éxito de ambas políticas]{Tasa de éxito de ambas políticas con intervalos de
-  confianza de Wilson al 95\,\%}
+  confianza de Wilson al 95\,\%, y tasa de movimiento de la válvula}
   \label{fig:tasa-exito}
+\end{figure}
+
+La tabla \ref{tab:resultado-principal} y la figura \ref{fig:tasa-exito} recogen el resultado
+agregado. GR00T resuelve el 92\,\% de las tiradas y ACT el 86\,\%. Dos lecturas inmediatas. La
+primera es que \textbf{el orden se mantiene en los dos bloques} —91 frente a 83 con la semilla 42,
+94 frente a 89 con la semilla 7— y que los dos bloques son coherentes entre sí: el segundo salió
+algo más fácil para ambas políticas, como cabe esperar de otro sorteo, y la diferencia entre
+políticas es de ocho y cinco puntos respectivamente. La segunda es que \textbf{los intervalos de
+confianza se solapan}: 88--95\,\% frente a 81--90\,\%. Mirar solo las barras de la figura no
+permite afirmar que la diferencia sea real, y esa es precisamente la razón de que el diseño sea
+emparejado.
+
+\begin{figure}[htb]
+\centering
+  \includegraphics[width=\textwidth]{figuras/simulacion/secuencia_rollout_gr00t.png}
+  \caption[Secuencia de una tirada de evaluación]{Primera tirada de evaluación de GR00T con la
+  semilla 42 —válvula en disposición cenital, resuelta en 8,5 segundos—, en vista de tercera
+  persona y con el fondo de oficina, a los 0,5, 1,75, 4 y 6,75 segundos: reposo, primer agarre de
+  un radio, tirón, y nuevo agarre tras soltar. El giro desde arriba se hace a golpes, no de una
+  pasada. La política solo ve la cámara de la cabeza del robot}
+  \label{fig:secuencia}
 \end{figure}
 
 \subsubsection{El contraste emparejado}
 
-De las doscientas tiradas, ciento sesenta las resuelven ambas políticas, veinticinco solo GR00T,
-doce solo ACT y tres ninguna. La prueba exacta de McNemar sobre los treinta y siete casos
-discordantes arroja $p = 0{,}047$.
+\begin{table*}[ht]
+	\centering
+	\caption{Tabla de contingencia emparejada sobre las doscientas tiradas}
+	\label{tab:mcnemar}
+	\begin{tabular}{|l|c|c|}
+		\cline{2-3}
+		\multicolumn{1}{c|}{} & ACT acierta & ACT falla \\ \hline
+		GR00T acierta & 160 & \textbf{25} \\
+		GR00T falla & \textbf{12} & 3 \\ \hline
+	\end{tabular}
+\end{table*}
 
-\textbf{Ese valor cruza el umbral del 5\,\% por un solo episodio y es frágil.} Un reparto de
-veinticuatro contra trece daría $p = 0{,}099$, y de veinticinco contra trece, $p = 0{,}073$. La
+De las doscientas tiradas, ciento sesenta las resuelven ambas políticas, veinticinco solo GR00T,
+doce solo ACT y tres ninguna (tabla \ref{tab:mcnemar}). Solo los treinta y siete casos discordantes
+llevan información, y la prueba exacta de McNemar sobre ellos arroja $p = 0{,}047$.
+
+\textbf{Ese valor cruza el umbral del 5\,\% por un solo episodio, y es frágil.} Basta cambiar un
+rollout de sitio para verlo: un reparto de veinticuatro contra trece daría $p = 0{,}099$, y de
+veinticinco contra trece, $p = 0{,}073$. Con los cien primeros rollouts la misma comparación daba
+$p = 0{,}134$, y doblar la muestra la movió de «no se puede afirmar nada» a «está en el límite»,
+que es exactamente el comportamiento que se espera de una diferencia real pero pequeña. La
 afirmación que los datos sostienen es que \textit{GR00T va consistentemente por delante en los dos
 bloques y la diferencia se aproxima a la significación estadística}; afirmar que GR00T es
-significativamente mejor que ACT sería sobreinterpretar el resultado.
+significativamente mejor que ACT sería sobreinterpretar el resultado, y la frase se caería en cuanto
+alguien preguntase qué pasa con otra semilla.
 
 \subsubsection{Dónde vive la diferencia}
 
@@ -145,30 +244,126 @@ significativamente mejor que ACT sería sobreinterpretar el resultado.
 \centering
   \includegraphics[width=\textwidth]{figuras/resultados/fig4_exito_por_disposicion.pdf}
   \caption[Tasa de éxito por disposición de la válvula]{Tasa de éxito de cada política separada por
-  disposición de la válvula}
+  disposición de la válvula. El reparto entre disposiciones es el que salió del sorteo}
   \label{fig:por-disposicion}
 \end{figure}
 
-Lo que sí resulta significativo, y con mucho margen, es el efecto de la disposición: ambas políticas
-son claramente peores con la válvula en posición cenital. Y toda la diferencia entre métodos vive
-ahí: treinta y seis de los treinta y siete casos discordantes son cenitales, mientras que la
-disposición frontal está saturada para las dos. La afirmación defendible es, por tanto, que
-\textit{GR00T aguanta algo mejor la disposición difícil}, no que sea mejor en general.
+Lo que sí resulta significativo, y con mucho margen, es el efecto de la disposición (figura
+\ref{fig:por-disposicion}). Con el volante de frente las dos políticas están saturadas: GR00T
+resuelve 84 de 84 y ACT 83 de 84. Con el volante hacia arriba, GR00T resuelve 101 de 116 (87\,\%) y
+ACT 89 de 116 (77\,\%). La prueba exacta de Fisher da $p = 0{,}00021$ para GR00T y
+$p = 0{,}0000018$ para ACT: \textbf{ambas políticas son claramente peores en la disposición
+cenital}, y eso aguanta cualquier contraste. No es un artefacto de una política: es que la tarea es
+más difícil por ese lado, y es coherente con todo lo demás que se midió de esa disposición —fue la
+que hubo que acercar dos veces en las gafas antes de resultar cómoda de operar, y la que rompía la
+reproducción en lazo abierto, porque agarrar un radio desde arriba depende del punto exacto de
+contacto mucho más que empujar de frente.
+
+Y de ahí sale toda la diferencia entre políticas. \textbf{Treinta y seis de los treinta y siete
+casos discordantes son cenitales.} En la disposición frontal hay un único caso discordante —una
+tirada que GR00T resuelve y ACT no— y ninguno en sentido contrario, de modo que no hay margen donde
+separarse. Restringiendo el contraste emparejado a la disposición cenital, el reparto es
+veinticuatro contra doce y $p = 0{,}065$; en la frontal, uno contra cero y $p = 1$. La lectura
+correcta no es «GR00T es mejor en general», sino «\textit{GR00T aguanta algo mejor la disposición
+difícil}» —y ni siquiera eso alcanza la significación por sí solo al restringir la muestra.
+
+Los tres episodios que fallan las dos políticas son también cenitales, y no son uniformemente
+difíciles: en uno las dos se quedan cerca de los 90\textdegree, pero en otro GR00T llega a
+133\textdegree{} y ACT a 176\textdegree, y en el tercero GR00T a 149\textdegree{} y ACT a
+74\textdegree. Solo una condición inicial de doscientas derrota a ambas políticas en el mismo
+punto; las demás derrotas son propias de cada una.
+
+\subsubsection{Cuánto tardan cuando aciertan}
+
+\begin{table*}[ht]
+	\centering
+	\caption{Pasos hasta cruzar el umbral de éxito, en los episodios con éxito}
+	\label{tab:tiempos}
+	\makebox[\textwidth]{
+		\begin{tabular}{|l|c|c|c|c|}
+			\cline{1-5}
+			Política & Frontal (mediana) & Cenital (mediana) & Global (mediana) & Percentil 90 \\ \hline
+			GR00T N1.7 & 312 pasos (6,2\,s) & 418 pasos (8,4\,s) & 356 pasos (7,1\,s) & 597 pasos \\
+			ACT & 311 pasos (6,2\,s) & 421 pasos (8,4\,s) & 366 pasos (7,3\,s) & 688 pasos \\ \hline
+		\end{tabular}
+	}
+\end{table*}
+
+El paso en el que el volante cruza los 180\textdegree{} añade una dimensión que la tasa de éxito no
+tiene (tabla \ref{tab:tiempos}). Dos observaciones. La primera es que \textbf{las dos políticas son
+igual de rápidas}: 312 frente a 311 pasos de mediana en la frontal, 418 frente a 421 en la cenital.
+La diferencia entre métodos no es de velocidad de ejecución; ambas copian el ritmo del operador. La
+segunda es que \textbf{la disposición cenital cuesta 2,1 segundos más} a las dos, con exactitud
+casi idéntica. La dificultad de esa disposición se manifiesta también en el tiempo, no solo en la
+tasa: alcanzar un radio desde arriba y girar lleva más pasos de aproximación aunque salga bien.
+Donde las políticas se separan es en la cola: el percentil 90 de ACT está 91 pasos por encima del
+de GR00T, es decir, ACT tiene más éxitos lentos. Con un presupuesto de 1000 pasos y una mediana de
+356--366, el tiempo no es lo que limita a ninguna de las dos.
 
 \subsection{Distribución de los fallos}
 
 \begin{figure}[htb]
 \centering
   \includegraphics[width=\textwidth]{figuras/resultados/fig3_distribucion_angulo.pdf}
-  \caption[Distribución del ángulo final alcanzado]{Distribución del ángulo final alcanzado por el
-  volante, con el umbral de éxito marcado}
+  \caption[Distribución del ángulo final alcanzado]{Distribución del ángulo máximo alcanzado por el
+  volante en cada tirada, con el umbral de éxito marcado. La barra de los éxitos está pegada al
+  umbral porque el episodio termina en el paso en que lo cruza}
   \label{fig:angulos}
 \end{figure}
 
-La tasa de movimiento de la articulación resulta del 100\,\% para ambas políticas en las
-cuatrocientas tiradas, de modo que no discrimina en esta comparación. Pero es en sí misma un
-resultado: no hay ni un solo episodio en el que el robot no llegue a alcanzar la válvula. Todos los
-fallos son de \textit{no completar media vuelta}, nunca de \textit{no encontrarla}.
+La tasa de movimiento de la articulación es del 100\,\% para ambas políticas en las cuatrocientas
+tiradas, de modo que no discrimina en esta comparación. Pero es en sí misma un resultado: no hay ni
+un solo episodio en el que el robot no llegue a la válvula y la gire, y el giro mínimo observado en
+cuatrocientas tiradas es de 59\textdegree. Todos los fallos son de \textit{no completar media
+vuelta}, nunca de \textit{no encontrarla}. Las dos políticas han aprendido a aproximarse, a agarrar
+y a girar; lo que a veces les falta es terminar.
+
+La figura \ref{fig:angulos} hay que leerla con una cautela que no es evidente. Los éxitos se
+acumulan todos entre 180,0\textdegree{} y 184,0\textdegree{} —en las dos políticas, sin excepción—
+y eso \textbf{no dice nada de hasta dónde giraría la política}: el episodio termina en el mismo
+paso en que se cruza el umbral —se ha comprobado en los 357 éxitos—, y lo que el volante avanza
+por encima de 180\textdegree{} son las décimas de segundo que tarda en registrarse el cruce.
+Durante la grabación, en cambio, el éxito debía sostenerse diez pasos, y por eso las
+demostraciones acaban algo más allá.
+La información de la figura está en la cola de fallos, y ahí las dos distribuciones sí difieren
+(tabla \ref{tab:fallos}).
+
+\begin{table*}[ht]
+	\centering
+	\caption{Caracterización de los episodios fallidos}
+	\label{tab:fallos}
+	\makebox[\textwidth]{
+		\begin{tabular}{|l|c|c|c|c|c|c|}
+			\cline{1-7}
+			Política & Fallos & Ángulo máximo & Mediana & $\geq 170$\textdegree & $< 100$\textdegree & Retroceden \\ \hline
+			GR00T N1.7 & 15 (todos cenitales) & 73--165\textdegree & 133\textdegree & 0 & 3 & 13 de 15 \\
+			ACT & 28 (27 cenitales) & 59--178\textdegree & 121\textdegree & 4 & 8 & 24 de 28 \\ \hline
+		\end{tabular}
+	}
+\end{table*}
+
+Los quince fallos de GR00T se concentran entre 73\textdegree{} y 165\textdegree, con mediana en
+133\textdegree; ninguno llega a 170\textdegree{} y solo tres se quedan por debajo de
+100\textdegree. Los veintiocho de ACT se reparten más: van de 59\textdegree{} a 178\textdegree,
+con mediana en 121\textdegree, cuatro casi-éxitos por encima de 170\textdegree{} y ocho por debajo
+de 100\textdegree. ACT falla más veces y falla de forma más dispersa, por los dos extremos: tiene
+más tiradas que se quedan a un paso y más tiradas que se quedan lejos. Los cuatro casi-éxitos de
+ACT ilustran el coste de una métrica binaria —una política que gira 178\textdegree{} puntúa igual
+que una que no ha aprendido la tarea— y son la razón de dar el ángulo junto con la tasa.
+
+La trayectoria del ángulo dentro de cada fallo dice además \textbf{cómo} se falla, y no es como
+cabría suponer. Ningún fallo agota el tiempo con el volante parado en un punto: el ángulo máximo se
+alcanza tarde —en el paso 774 de mediana para GR00T y 851 para ACT, de 1000— y en dos de cada
+tres fallos el ángulo aún subía en los últimos cien pasos. Sobre todo, en trece de los quince
+fallos de GR00T y en veinticuatro de los veintiocho de ACT \textbf{el volante retrocede} más de
+cinco grados desde su máximo, hasta 99\textdegree{} en el peor caso. La imagen que dibujan esas
+trayectorias es la de una política que gira, pierde el radio, ve cómo el volante se vuelve atrás
+—la articulación no tiene fricción seca que lo retenga— y vuelve a intentarlo, sin llegar a
+acumular media vuelta antes de que se acabe el tiempo. Es un fallo de agarre sostenido, no de
+localización ni de intención, y es coherente con que ocurra casi exclusivamente en la disposición
+cenital, donde el agarre desde arriba depende del punto exacto de contacto con el radio. Esa
+lectura es una interpretación de las trayectorias, no una medida directa del contacto; pero es la
+única compatible con retrocesos de decenas de grados en episodios que siguen intentándolo.
 
 \subsection{Eficiencia en datos}
 
@@ -176,18 +371,58 @@ fallos son de \textit{no completar media vuelta}, nunca de \textit{no encontrarl
 \centering
   \includegraphics[width=\textwidth]{figuras/resultados/fig8_curva_eficiencia.pdf}
   \caption[Curva de eficiencia en datos]{Tasa de éxito frente al número de demostraciones de
-  entrenamiento, en el total de las tiradas y restringida a la disposición cenital}
+  entrenamiento, en el total de las tiradas y restringida a la disposición cenital. Cien tiradas
+  por punto sobre las mismas condiciones iniciales; cada punto es un único entrenamiento}
   \label{fig:eficiencia}
 \end{figure}
 
-La hipótesis que justifica el empleo de un modelo fundacional era que GR00T se despegara con pocas
-demostraciones y ACT necesitara más. \textbf{No se observa.} Ninguna diferencia dentro de una misma
-política resulta significativa. El resultado es negativo y es el más útil del experimento: el
-margen de fallo restante \textbf{no es un problema de cantidad de datos}, sino de su composición.
+\begin{table*}[ht]
+	\centering
+	\caption{Tasa de éxito frente al número de demostraciones, cien tiradas por punto}
+	\label{tab:eficiencia}
+	\makebox[\textwidth]{
+		\begin{tabular}{|l|c|c|c|}
+			\cline{1-4}
+			Política & 25 demostraciones & 50 demostraciones & 100 demostraciones \\ \hline
+			GR00T N1.7 & \textbf{93\,\%} (86--97) & 91\,\% (84--95) & 91\,\% (84--95) \\
+			ACT & 84\,\% (76--90) & 91\,\% (84--95) & 83\,\% (75--89) \\ \hline
+			Solo cenital, GR00T & 89\,\% & 86\,\% & 86\,\% \\
+			Solo cenital, ACT & 79\,\% & 88\,\% & 75\,\% \\ \hline
+		\end{tabular}
+	}
+\end{table*}
 
-Debe leerse con una cautela que se hace explícita: cada punto de la curva corresponde a un único
-entrenamiento, de modo que la variación entre puntos mezcla el efecto de los datos con la varianza
-de semilla del propio entrenamiento.
+La hipótesis que justifica el empleo de un modelo fundacional es que GR00T se despegara con pocas
+demostraciones y ACT necesitara más para alcanzarlo. \textbf{No se observa} (figura
+\ref{fig:eficiencia}, tabla \ref{tab:eficiencia}). GR00T está en el 93\,\% con veinticinco
+demostraciones y no mejora con cien; ACT va de 84 a 91 y vuelve a 83. Ninguna diferencia dentro de
+una misma política es significativa: para GR00T, 25 frente a 100 demostraciones da siete casos
+discordantes contra cinco y $p = 0{,}77$; para ACT, 25 frente a 100 da trece contra doce y
+$p = 1$, y 50 frente a 100, quince contra siete y $p = 0{,}13$. Entre políticas, en cada punto:
+$p = 0{,}078$ con veinticinco demostraciones, empate exacto con cincuenta —91\,\% las dos, seis
+discordantes en cada sentido— y $p = 0{,}134$ con cien.
+
+Tres lecturas, en orden de solidez. Primera, y es la más firme: \textbf{con esta tarea,
+veinticinco demostraciones ya saturan lo que el tamaño del conjunto de datos puede dar}.
+Cuadruplicarlas no mueve la tasa de éxito de ninguna de las dos políticas. Es un resultado
+negativo, y es el más útil del experimento: dice que el 8--15\,\% de fallo que queda \textbf{no es
+un problema de cantidad de datos}, de modo que grabar hacia cuatrocientas demostraciones con el
+mismo reparto —que era el plan inicial— no lo habría arreglado, y explica por qué el conjunto
+definitivo se cerró en cien. Segunda: lo que importa es la \textbf{composición}. El panel derecho
+de la figura lo enseña: en la disposición frontal GR00T resuelve 37 de 37 en los tres puntos y ACT
+entre 34 y 36 de 37, saturado desde veinticinco demostraciones; toda la variación vive en la
+cenital. Es el segundo argumento independiente, tras el de la sección anterior, para reequilibrar
+cualquier captura adicional hacia la disposición difícil. Tercera, y es una tendencia, no un
+hallazgo: GR00T aguanta mejor con pocos datos. 93\,\% contra 84\,\% con veinticinco demostraciones
+es la mayor separación de los tres puntos y va en la dirección que la hipótesis predice, pero
+$p = 0{,}078$ y con cincuenta el orden se invierte hasta el empate.
+
+Debe leerse con una cautela que se hace explícita en el pie de la figura: cada punto corresponde a
+\textbf{un único entrenamiento}, de modo que la variación entre puntos mezcla el efecto de los datos
+con la varianza de semilla del propio entrenamiento. El sube-y-baja de ACT —84, 91, 83— es casi con
+seguridad ruido de entrenamiento y no una relación real con el tamaño del conjunto; separar ambas
+cosas exigiría varias semillas por punto, que no cabían en el calendario. La frase defendible es
+«la curva es plana», nunca «ACT empeora con más datos».
 
 \subsection{Latencia de inferencia}
 
@@ -195,17 +430,96 @@ de semilla del propio entrenamiento.
 \centering
   \includegraphics[width=\textwidth]{figuras/resultados/fig9_latencia.pdf}
   \caption[Coste de inferencia frente al presupuesto de tiempo real]{Coste de inferencia de cada
-  política frente al presupuesto que impone el lazo de control}
+  política por bloque de acciones, en escala logarítmica, frente al presupuesto que impone el lazo
+  de control}
   \label{fig:latencia}
 \end{figure}
 
-La diferencia de sesenta y un veces en número de parámetros se traduce en diez veces en latencia, y
-aun así ambas políticas caben holgadamente dentro del presupuesto. La latencia no es, en esta tarea
-y sobre este equipamiento, un argumento en contra del modelo fundacional.
+\begin{table*}[ht]
+	\centering
+	\caption{Latencia de inferencia por bloque de cuarenta acciones, medida en lazo cerrado}
+	\label{tab:latencia}
+	\makebox[\textwidth]{
+		\begin{tabular}{|l|c|c|c|c|c|c|}
+			\cline{1-7}
+			Política & Parámetros & Mediana & Percentil 95 & Máximo & Primera llamada & Margen \\ \hline
+			GR00T N1.7 & 3140\,M & 53\,ms & 58\,ms & 133\,ms & 485\,ms & $\times 15$ \\
+			ACT & 51,7\,M & 5,2\,ms & 5,5\,ms & 6,8\,ms & 198\,ms & $\times 154$ \\ \hline
+		\end{tabular}
+	}
+\end{table*}
+
+Es el otro eje donde 3140 millones de parámetros contra 51,7 millones tiene que notarse, y se nota
+(figura \ref{fig:latencia}, tabla \ref{tab:latencia}): la mediana de GR00T es diez veces la de
+ACT. Pero el presupuesto son 800\,ms —un bloque de cuarenta acciones a 50\,Hz—, y \textbf{ninguna de
+las 226 medidas se sale}, ni el máximo de GR00T. Los sesenta y un veces de diferencia en parámetros
+cuestan diez veces en latencia, y aun así las dos políticas caben con holgura: GR00T con quince
+veces de margen sobre su mediana y seis sobre su peor caso, ACT con más de ciento cincuenta.
+
+Dos matices sobre la figura. ACT es, además de rápida, \textbf{estable}: entre la mediana y el
+máximo hay 1,6\,ms. GR00T tiene una \textbf{cola}: su máximo es dos veces y media la mediana, y la
+nube de medidas muestra unas pocas llamadas dispersas hacia los cien milisegundos. Con este
+presupuesto la cola es irrelevante, pero es el tipo de comportamiento que habría que caracterizar
+antes de acortar el bloque de acciones. Y la primera llamada de cada política —485 y 198\,ms— se
+descarta porque es compilación de núcleos, pero en un despliegue real existe: es el tiempo que la
+política tarda en estar lista tras arrancar.
+
+La conclusión práctica es que \textbf{la latencia no es un argumento contra el modelo fundacional en
+esta tarea}. Dicho lo cual, conviene situar la medida: el servidor corre solo en una GPU de 96\,GB
+y el enlace con el simulador es local. En un robot real, con más carga sobre la misma GPU y una red
+por medio, los 53\,ms son el suelo, no el techo.
 
 \subsection{Amenazas a la validez}
 
-Discusión honesta de los límites del experimento: una sola tarea, una sola semilla de entrenamiento
-por configuración, ausencia de validación sobre robot físico, y el hecho de que las demostraciones
-terminan justo al cruzar el umbral de éxito, lo que hace que parte de los fallos sean casi-éxitos
-por construcción del protocolo de captura.
+Los resultados anteriores sostienen una comparación limpia dentro de sus límites, y conviene
+enumerar esos límites con la misma precisión que las cifras.
+
+\textbf{Una sola tarea, una sola configuración.} Todo lo medido describe la apertura de una válvula
+de volante en dos disposiciones, con un G1 cuyo pelvis está fijado durante la manipulación. Las
+tasas no se transfieren a otras tareas; lo que se transfiere es el banco. Y la base fija es una
+concesión que en un despliegue no existiría: el par de reacción del volante lo absorbería la
+política de equilibrio, con consecuencias que este trabajo no mide.
+
+\textbf{Una sola semilla de entrenamiento por configuración.} Cada punto de la curva de eficiencia
+y cada una de las dos políticas de la comparación principal es un único entrenamiento. La varianza
+entre semillas de entrenamiento no está medida, y es la explicación más probable de las
+oscilaciones de la curva. Afecta menos a la comparación principal —que se apoya en doscientas
+tiradas emparejadas de un mismo par de políticas— que a cualquier afirmación sobre la forma de la
+curva.
+
+\textbf{La comparación no es simétrica en su punto de partida, por diseño.} GR00T arranca de un
+modelo preentrenado y, además, del ajuste de NVIDIA sobre el mismo \textit{embodiment} y la misma
+cámara; ACT arranca de pesos aleatorios. Eso es exactamente lo que se quiere comparar —un modelo
+fundacional frente a una arquitectura entrenada desde cero—, pero significa que la ventaja de GR00T
+en la disposición difícil puede proceder tanto de su arquitectura como de haber visto ya a este
+robot manipular en simulación. El experimento no separa las dos cosas.
+
+\textbf{Las demostraciones terminan al cruzar el umbral.} El grabador cierra cada demostración diez
+pasos después del éxito, de modo que el operador nunca sigue girando y las demostraciones acaban
+entre 180\textdegree{} y 232\textdegree. La política aprende de trayectorias que se detienen justo
+después de media vuelta, y parte de los fallos —los cuatro de ACT por encima de 170\textdegree{}
+en particular— son casi-éxitos por construcción del protocolo de captura, no por incapacidad. Un
+margen mayor al grabar habría dado probablemente tasas más altas a las dos políticas.
+
+\textbf{Evaluación en distribución.} Las políticas se evalúan en el mismo simulador, con el mismo
+fondo y el mismo sorteo de condiciones iniciales con que se generaron sus datos de entrenamiento.
+No se ha medido ninguna forma de generalización fuera de esa distribución —otra válvula, otro
+fondo, otra iluminación—, que es donde la literatura sitúa la ventaja de los modelos fundacionales.
+El resultado de la curva de eficiencia debe leerse con esa acotación: dice que los datos no son el
+límite \textit{en distribución}.
+
+\textbf{Sin validación sobre el robot físico.} La distancia entre el simulador y el robot no se mide. La dinámica de
+contacto del agarre —que es, según el análisis de los fallos, lo que decide los episodios
+cenitales— es la parte del simulador de la que menos garantías hay, y la articulación de la válvula
+no tiene fricción seca, lo que hace que el volante retroceda al soltarlo de una forma que una
+válvula real no haría.
+
+\textbf{Un único operador y un espacio de acción con dimensiones muertas.} Las cien demostraciones
+las grabó la misma persona, y seis de las veintitrés dimensiones de la acción son constantes. Lo
+primero da un conjunto consistente a costa de un sesgo de estilo; lo segundo se documenta en el
+capítulo \ref{Solución} y no se corrigió para no abrir un experimento cerrado.
+
+Ninguna de estas amenazas invalida la afirmación central del capítulo, que es también la más
+modesta: sobre esta tarea y con estos datos, el modelo fundacional va por delante de la política
+clásica por un margen pequeño y difícil de acreditar, y la variable que domina el resultado es la
+disposición de la válvula, no el método.

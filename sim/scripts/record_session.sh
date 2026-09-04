@@ -49,5 +49,5 @@ docker exec -w /workspaces/isaaclab_arena isaaclab_arena-latest bash -c \
     --viz kit --device cpu --enable_cameras --livestream 2 \
     --dataset_file ${DESTINO} \
     --num_demos ${NUM_DEMOS:-25} --num_success_steps 10 --disable_full_sim_buffer_reset \
-    --kit_args='--/renderer/multiGpu/enabled=false --/renderer/activeGpu=0 --/persistent/xr/profile/ar/renderQuality=performance --/rtx/rendermode=RaytracedLighting --/rtx/post/tonemap/op=2 --/exts/omni.kit.livestream.app/primaryStream/signalPort=49120 --/exts/omni.kit.livestream.app/primaryStream/streamPort=48020 --/exts/omni.kit.livestream.app/primaryStream/publicIp=172.22.41.51' \
+    --kit_args='--/renderer/multiGpu/enabled=false --/renderer/activeGpu=0 --/persistent/xr/profile/ar/renderQuality=performance --/rtx/rendermode=RaytracedLighting --/rtx/post/tonemap/op=2 --/exts/omni.kit.livestream.app/primaryStream/signalPort=49120 --/exts/omni.kit.livestream.app/primaryStream/streamPort=48020 --/exts/omni.kit.livestream.app/primaryStream/publicIp=${STREAM_PUBLIC_IP:?Define STREAM_PUBLIC_IP con la IP de la estación que ve el cliente WebRTC (se ha quitado del repositorio)}' \
     g1_valve --teleop_device openxr --embodiment g1_wbc_agile_pink --background none"

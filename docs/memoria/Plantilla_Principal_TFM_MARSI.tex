@@ -4,12 +4,15 @@
 
 % Tipo de documento:
 \documentclass[12pt,a4paper,onecolumn,oneside]{report}
+\makeatletter
 \newcommand{\mychapter}[2]{
 	\setcounter{chapter}{#1}
 	\setcounter{section}{0}
 	\chapter*{#2}
 	\addcontentsline{toc}{chapter}{#2}
+	\def\@currentlabel{}
 }
+\makeatother
 
 
 
@@ -55,7 +58,9 @@
 
 
 % Propiedades para el PDF generado (METADATOS):
-\newcommand{\authorNames}{Izan Viñes}
+\newcommand{\authorNames}{Izan Viñes Castaño}
+% Enlace al repositorio público del trabajo. Un solo sitio para cambiarlo.
+\newcommand{\repolink}{\url{https://github.com/izanvines/TFM_ValveOperator}}
 \newcommand{\pdftitle}{Aprendizaje por imitación en la apertura de válvulas con un humanoide Unitree G1: modelos visión-lenguaje-acción frente a políticas clásicas}
 \hypersetup{
   pdftitle={\pdftitle},% Título
@@ -100,7 +105,7 @@
 
 \fancypagestyle{headings}{% Redefine el estilo "headings".
 	\fancyhf{} % Clear all header and footer fields.
-	\lhead{\small \it Máster en Robótica y Sistemas Inteligentes} 
+	\lhead{\small \it Máster en Robótica e Inteligencia Artificial} 
 	\rhead{\small \it Página \thepage}      % Nº de página a la derecha. Tamaño "small".
 	\renewcommand{\headrulewidth}{1pt}
 }
@@ -131,6 +136,9 @@
 \renewcommand{\thepage}{\roman{page}}
 \setcounter{page}{1} % Esta página es la 1.
 
+
+% Página con la DECLARACIÓN DE USO DE IA:
+\input{capitulos/00_declaracion_ia}
 
 % Página con el ÍNDICE GENERAL
 \tableofcontents
@@ -180,6 +188,8 @@
 \input{capitulos/A2_seguimiento}
 
 \input{capitulos/A3_protocolo_evaluacion}
+
+\input{capitulos/A4_gaussian_splatting}
 
 
 \end{document}

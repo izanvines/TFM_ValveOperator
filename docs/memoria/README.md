@@ -62,5 +62,10 @@ Coge lo que `pdflatex` tarda en decirte o directamente no dice: entornos sin cer
 descompensadas, imágenes que faltan, `\ref` a etiquetas inexistentes, `\cite` a claves que no
 están en el `.bib`, y los marcadores `[PENDIENTE]` que aún quedan por rellenar.
 
-`VERIFICAR_BIBLIOGRAFIA.md` lista lo que hay que contrastar contra las fuentes originales antes de
-entregar. **Las entradas del `.bib` están escritas de memoria y no se han comprobado.**
+`VERIFICAR_BIBLIOGRAFIA.md` es el registro de verificación de la bibliografía: cada entrada del
+`.bib` se contrastó contra su fuente primaria (arXiv, PMLR, Crossref, dblp o la web del producto) el
+2026-09-04, con las decisiones de forma que se tomaron.
+
+`extra/declaracion_ia_original.txt` es el texto de la declaración de uso de IA tal como lo pidió el
+tutor; `capitulos/00_declaracion_ia.tex` es el que se compila, adaptado a la macro de capítulo sin
+numerar de la plantilla.

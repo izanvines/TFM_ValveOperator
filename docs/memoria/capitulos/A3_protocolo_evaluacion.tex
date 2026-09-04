@@ -5,37 +5,129 @@ La plantilla reserva este anexo a los cuestionarios empleados durante la fase de
 trabajo \textbf{no procede}: la evaluación no se basa en la valoración subjetiva de usuarios, sino en
 la ejecución automatizada de casos de prueba dentro del simulador, con un criterio de éxito medido
 por el propio entorno. En su lugar se documenta aquí el protocolo experimental completo, que cumple
-la misma función de permitir que un tercero reproduzca la evaluación.
+la misma función de permitir que un tercero reproduzca la evaluación. Los parámetros del
+experimento —semillas, presupuesto, criterio de éxito, instrucción— están en la tabla
+\ref{tab:protocolo} del capítulo \ref{Evaluación}; aquí van las condiciones operativas, el
+procedimiento y el análisis.
 
 \section{Condiciones de la evaluación}
 
-Parámetros fijos de toda evaluación: entorno, \textit{embodiment}, fondo, presupuesto de episodio,
-semillas y número de tiradas. Se justifica cada uno.
+\begin{table*}[ht]
+	\centering
+	\caption{Condiciones operativas de toda tirada de evaluación}
+	\label{tab:condiciones-eval}
+	\makebox[\textwidth]{
+		\begin{tabular}{|l|p{9.6cm}|}
+			\cline{1-2}
+			Condición & Valor y motivo \\ \hline
+			Simulador & Contenedor \texttt{isaaclab\_arena-latest}, física y render en la GPU 0, un único entorno paralelo \\
+			Servidor de política & Proceso en su propio entorno de ejecución en el anfitrión, en la GPU 1; para ACT, seleccionada por variable de entorno y nunca por índice de dispositivo \\
+			Comunicación & ZMQ sobre la interfaz local, puerto 5561; tiempo de espera del cliente de 300\,s, porque el valor por defecto de 15\,s aborta el episodio \\
+			Fondo e iluminación & \texttt{office\_gs} con la intensidad de la luz de cúpula sin fijar, porque así se generaron las imágenes de entrenamiento \\
+			Base del robot & Pelvis fijado; canales de locomoción sin uso \\
+			Presupuesto & 20\,s por episodio, 1000 pasos a 50\,Hz \\
+			Registro & Activado con \texttt{ARENA\_EVAL\_RECORD=1}; sin cámaras en el fichero de resultados, para que cien episodios ocupen megabytes y no gigabytes \\
+			Vídeo & Tirada aparte de cinco episodios con el visualizador y la cámara de tercera persona; no se mezcla con la de métricas \\ \hline
+		\end{tabular}
+	}
+\end{table*}
+
+Cada una de esas condiciones viene de un fallo que costó tiempo, y las tres que más importan son
+las que no dan error si se incumplen: evaluar con una iluminación distinta de la de entrenamiento
+—la política recibe la mitad de luz en su única entrada visual y simplemente lo hace peor—,
+servir ACT en la segunda GPU por su índice —los búferes de normalización quedan a cero y la
+política emite ceros— y dejar el tiempo de espera del cliente en su valor por defecto.
 
 \section{Procedimiento}
 
-Secuencia de pasos de una tirada de evaluación, desde el arranque del proceso que sirve la política
-hasta la escritura del fichero de resultados.
+Una tirada de evaluación de $N$ episodios sigue estos pasos, que son los que ejecuta el guion
+\texttt{eval\_valve\_100.sh} sin supervisión:
+
+\begin{enumerate}
+	\item \textbf{Arrancar el servidor de la política} en su entorno de ejecución. Para GR00T, un
+	fichero de configuración con la ruta del punto de control; para ACT, el punto de control, las
+	estadísticas del conjunto de datos y la GPU por variable de entorno. El servidor de ACT
+	comprueba al arrancar que los búferes de normalización no son nulos y se niega a servir si lo
+	son.
+	\item \textbf{Esperar} a que el registro del servidor diga \texttt{listening on tcp://}. Lanzar
+	el cliente antes agota el tiempo de espera.
+	\item \textbf{Lanzar el cliente} en el contenedor con el comando de evaluación —idéntico para
+	toda política—, el número de episodios y la semilla. El cliente reinicia el entorno, sortea la
+	válvula, pide bloques de cuarenta acciones al servidor y avanza hasta el éxito o el
+	presupuesto.
+	\item \textbf{Recoger el fichero de resultados}, que el simulador escribe en su directorio de
+	registros, y moverlo al directorio de resultados con el nombre de la política y del bloque.
+	\item \textbf{Detener el servidor} desde el anfitrión y el cliente desde dentro del contenedor,
+	donde corre como \textit{root}; un \texttt{pkill} desde fuera no tiene permiso.
+	\item Repetir del paso 1 para la otra política \textbf{con la misma semilla}, que es lo que
+	garantiza el emparejamiento; y comprobar, leyendo las poses iniciales de ambos ficheros, que
+	coinciden.
+\end{enumerate}
+
+Para la curva de eficiencia el mismo procedimiento se encadena seis veces —tres subconjuntos por
+política— en el guion de la noche final, que escribe un centinela por etapa y por eso puede
+relanzarse sin repetir lo hecho. Para la latencia, el servidor se envuelve en una subclase que
+cronometra cada llamada con sincronización de GPU a ambos lados y escribe una línea por bloque de
+acciones; la subclase debe redefinir el constructor de línea de comandos de la clase base, que de
+otro modo instancia la política sin cronometrar.
 
 \section{Registro de resultados}
 
-Estructura del fichero de resultados y campos que se extraen de él para el análisis.
+El fichero de resultados es un HDF5 con un grupo por episodio, escrito por los mismos registradores
+que el grabador de demostraciones. La tabla \ref{tab:campos-registro} recoge los campos y, a
+continuación, las magnitudes que el análisis deriva de ellos.
 
 \begin{table*}[ht]
 	\centering
 	\caption{Campos registrados por episodio}
 	\label{tab:campos-registro}
 	\makebox[\textwidth]{
-		\begin{tabular}{|l|p{10cm}|}
-			\cline{1-2}
-			Campo & Contenido \\ \hline
-			[PENDIENTE] & \\ \hline
+		\begin{tabular}{|l|l|p{7.2cm}|}
+			\cline{1-3}
+			Campo & Forma & Contenido \\ \hline
+			\texttt{success} & (1) & Éxito del episodio, booleano \\
+			\texttt{revolute\_joint\_state} & ($T$) & Apertura normalizada de la válvula en cada paso \\
+			\texttt{actions} & ($T$, 50) & Acción enviada al entorno: 43 articulaciones y 7 canales de base \\
+			\texttt{processed\_actions} & ($T$, 43) & Objetivos articulares tras el controlador \\
+			\texttt{obs/robot\_joint\_pos}, \texttt{obs/robot\_joint\_vel} & ($T$, 43) & Estado articular observado \\
+			\texttt{obs/*\_wrist\_pose\_pelvis\_frame} & ($T$, 4, 4) & Pose de cada muñeca en el sistema del pelvis \\
+			\texttt{initial\_state/articulation/*} & (1, $\cdot$) & Estado inicial completo del robot y de la válvula: posiciones y velocidades articulares, pose y velocidad de la raíz \\
+			\texttt{states/articulation/*} & ($T$, $\cdot$) & El mismo estado, en cada paso \\
+			atributos & --- & \texttt{num\_samples} ($T$) y \texttt{success} \\ \hline
 		\end{tabular}
 	}
 \end{table*}
 
+De ahí se derivan, por episodio: la \textbf{disposición}, a partir del cuaternión de la pose
+inicial de la válvula —una componente de módulo 0,707 identifica la frontal; cuatro componentes de
+0,5, la cenital—; el \textbf{ángulo máximo} alcanzado, como el máximo de la apertura por
+360\textdegree; si la válvula \textbf{se movió}, como apertura máxima superior a 0,05; el
+\textbf{paso en que se cruza el umbral}, como el primer índice con apertura mayor que 0,5; y la
+\textbf{duración}, $T$. La verificación del emparejamiento compara \texttt{initial\_state} de la
+válvula entre las dos políticas, episodio a episodio.
+
 \section{Análisis estadístico}
 
-Procedimiento de análisis: cálculo de las tasas y sus intervalos de Wilson, emparejamiento de las
-tiradas entre políticas, prueba exacta de McNemar sobre los casos discordantes y contraste de Fisher
-para el efecto de la disposición.
+Las tasas se acompañan de intervalos de confianza al 95\,\% por el \textbf{método de Wilson}, que
+para $k$ éxitos en $n$ tiradas centra el intervalo en $(\hat p + z^2/2n)/(1 + z^2/n)$ con
+$z = 1{,}96$ y se mantiene dentro de $[0,1]$ cuando $\hat p$ se acerca a los extremos, que es el
+caso aquí.
+
+La comparación entre políticas usa la \textbf{prueba exacta de McNemar}: con $b$ episodios que
+resuelve solo GR00T y $c$ que resuelve solo ACT, bajo la hipótesis nula de igualdad cada caso
+discordante cae a un lado u otro con probabilidad $1/2$, y el valor $p$ bilateral es la
+probabilidad binomial de un reparto al menos tan desigual como el observado. Los episodios que
+resuelven ambas o ninguna no entran, porque no llevan información sobre la diferencia. La
+sensibilidad del resultado se comprueba recalculando $p$ para repartos que difieren en un
+episodio.
+
+El efecto de la disposición dentro de una misma política se contrasta con la \textbf{prueba exacta
+de Fisher} sobre la tabla de dos por dos de disposición frente a éxito, porque compara dos grupos
+distintos de episodios y no hay emparejamiento que aprovechar. Las diferencias dentro de una misma
+política entre puntos de la curva de eficiencia vuelven a ser emparejadas —los seis entrenamientos
+se evaluaron sobre las mismas cien condiciones iniciales— y usan McNemar.
+
+Todo ello lo calculan los guiones de figuras del repositorio, que leen directamente los ficheros
+de resultados y escriben, junto a las figuras, un informe en texto con cada cifra y cada valor
+$p$; la primera llamada de cada política se descarta en la medida de latencia por ser compilación
+de núcleos. Ninguna cifra del capítulo \ref{Evaluación} se ha calculado a mano.

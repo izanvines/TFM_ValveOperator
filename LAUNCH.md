@@ -1,11 +1,17 @@
 # Cómo lanzar la simulación `g1_valve`
 
-Comandos verificados el **2026-08-18** en la workstation `tr-robotics-workstation-tocha`.
+Comandos verificados el **2026-08-18** en la workstation `<ESTACION>`.
 Cada modo es autocontenido: copia el bloque entero.
 
 Todo corre **dentro del contenedor** `isaaclab_arena-latest`. El código de simulación vive en
 `~/TFM/IsaacLab-Arena` (montado en `/workspaces/isaaclab_arena`), **no** en este repo — ver
 [`sim/README.md`](sim/README.md) para la correspondencia entre ambos.
+
+
+> **Marcadores.** Las direcciones de la estación de trabajo se han sustituido por marcadores para
+> publicar el repositorio: `<IP_ESTACION>` es la IP de la estación en la red cableada, `<IP_ESTACION_WIFI>`
+> la de la WiFi, `<SUBRED_LAN>` la subred desde la que se conectan el portátil y las gafas (formato
+> `a.b.c.0/24`) y `<ESTACION>` su nombre de máquina. Sustitúyelos por los de tu instalación.
 
 ---
 
@@ -48,14 +54,14 @@ silencio** — sin error, sin rechazo, sin línea de log. Es exactamente igual q
 sudo ufw status numbered
 
 # abrir lo necesario (ajusta la subred a la de tu portátil / gafas)
-sudo ufw allow from 172.22.41.0/24 to any port 49100 proto tcp
-sudo ufw allow from 172.22.41.0/24 to any port 47998 proto udp
-sudo ufw allow from 172.22.41.0/24 to any port 48322 proto tcp
+sudo ufw allow from <SUBRED_LAN> to any port 49100 proto tcp
+sudo ufw allow from <SUBRED_LAN> to any port 47998 proto udp
+sudo ufw allow from <SUBRED_LAN> to any port 48322 proto tcp
 ```
 
 La señalización es **TCP** y el vídeo **UDP**. Un túnel SSH solo reenvía TCP, así que conectar el
 cliente a `127.0.0.1` a través de un túnel negocia la sesión y luego se queda **negro para
-siempre**. Apunta el cliente a `172.22.41.51` directamente.
+siempre**. Apunta el cliente a `<IP_ESTACION>` directamente.
 
 ---
 
@@ -72,7 +78,7 @@ No hay teleoperación: el robot se queda de pie en una pose estable.
 ```bash
 docker exec isaaclab_arena-latest bash -c \
  'cd /workspaces/isaaclab_arena && unset DISPLAY && export HOME=/home/ivines && \
-  export PUBLIC_IP=172.22.41.51 && export OFFICE_GS_LIGHT=1500 && \
+  export PUBLIC_IP=<IP_ESTACION> && export OFFICE_GS_LIGHT=1500 && \
   /isaac-sim/python.sh -u /eval/arena_extras/stream_valve.py \
     --livestream 1 --viz kit --enable_cameras --device cuda:0 \
     --kit_args "--/renderer/multiGpu/enabled=false --/renderer/activeGpu=0" \
@@ -82,7 +88,7 @@ docker exec isaaclab_arena-latest bash -c \
 Espera a `>> STREAM LISTO`. Conecta el **Isaac Sim WebRTC Streaming Client**:
 
 ```
-Server:      172.22.41.51
+Server:      <IP_ESTACION>
 Signal port: 49100
 Stream port: 47998
 ```
@@ -148,7 +154,7 @@ Listo cuando aparezcan `Completed setting up the environment...` y `xrCreateInst
    certificado** (es autofirmado; si no lo aceptas, la conexión WSS falla en silencio).
 3. Ve a `https://nvidia.github.io/IsaacTeleop/client`
 4. **Server IP** = la IP de la workstation que alcance esa red
-   (`172.22.41.51` por cable, `192.168.84.71` por WiFi `TR-DT`).
+   (`<IP_ESTACION>` por cable, `<IP_ESTACION_WIFI>` por WiFi `TR-DT`).
 5. **Connect → Play**. La sesión XR arranca sola; no busques ningún botón "Start XR".
 
 ### Los ajustes de rendimiento importan
@@ -165,7 +171,7 @@ Añade al comando B.2: `--viz kit --livestream 2` y a los `--kit_args`:
 ```
 --/exts/omni.kit.livestream.app/primaryStream/signalPort=49120
 --/exts/omni.kit.livestream.app/primaryStream/streamPort=48020
---/exts/omni.kit.livestream.app/primaryStream/publicIp=172.22.41.51
+--/exts/omni.kit.livestream.app/primaryStream/publicIp=<IP_ESTACION>
 ```
 
 CloudXR ocupa el 49100 fijo (`isaacteleop/cloudxr/wss.py:244`, sin opción de CLI), por eso el
@@ -327,7 +333,7 @@ que de verdad lo sujeta.
 |---|---|---|
 | Segfault ~2 s, sin traza | falta `unset DISPLAY` | ver §0 |
 | Stream WebRTC en negro | falta `--viz kit`: no hay viewport | añadirlo; verificar con `capture_viewport.py` |
-| Stream negro con los puertos "abiertos" | el cliente va por túnel SSH (TCP), el vídeo es UDP | apuntar a `172.22.41.51` directo |
+| Stream negro con los puertos "abiertos" | el cliente va por túnel SSH (TCP), el vídeo es UDP | apuntar a `<IP_ESTACION>` directo |
 | Conecta la señalización, nunca llega imagen | falta la regla UDP en ufw | ver §0 |
 | `VK_ERROR_OUT_OF_DEVICE_MEMORY` | multi-GPU en XR | `--kit_args` con `multiGpu=false` + `activeGpu=0` |
 | 1 FPS en las gafas | falta `renderQuality=performance` / sobra el monitor | ver §B |

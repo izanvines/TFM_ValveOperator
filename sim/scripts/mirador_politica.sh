@@ -9,7 +9,7 @@
 #   * servidor de politica PROPIO en el 5563. Reutilizar el 5561 de la evaluacion seria peor que
 #     lento: el servidor ZMQ atiende una peticion a la vez, asi que los dos clientes se
 #     intercalarian y ninguna de las dos tiradas mediria lo que cree medir.
-#   * livestream en 49120/48020, que son los que ufw permite desde 172.22.41.0/24. El 49100 es
+#   * livestream en 49120/48020, que son los que ufw permite desde <SUBRED_LAN>. El 49100 es
 #     de CloudXR y `--livestream 1` lo fija sin poder cambiarlo: por ahi la imagen sale negra.
 #
 # NO usar CUDA_VISIBLE_DEVICES para elegir GPU: deja CUDA en un estado que vuelve negro el
@@ -48,7 +48,7 @@ docker exec -w /workspaces/isaaclab_arena isaaclab_arena-latest bash -c \
     --kit_args='--/renderer/multiGpu/enabled=false --/renderer/activeGpu=1 \
 --/exts/omni.kit.livestream.app/primaryStream/signalPort=49120 \
 --/exts/omni.kit.livestream.app/primaryStream/streamPort=48020 \
---/exts/omni.kit.livestream.app/primaryStream/publicIp=172.22.41.51' \
+--/exts/omni.kit.livestream.app/primaryStream/publicIp=${STREAM_PUBLIC_IP:?Define STREAM_PUBLIC_IP con la IP de la estación que ve el cliente WebRTC (se ha quitado del repositorio)}' \
     g1_valve --embodiment g1_wbc_agile_joint --background office_gs" \
   > "$LOGS/mirador_sim.log" 2>&1
 echo "[$(date +%H:%M:%S)] mirador: terminado" | tee -a "$LOGS/mirador.log"

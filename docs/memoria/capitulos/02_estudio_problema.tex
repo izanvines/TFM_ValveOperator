@@ -1,116 +1,450 @@
 \chapter{Estudio del problema}
 \label{Estudio del problema}
 
-Este capítulo sitúa el trabajo. Comienza describiendo el contexto industrial que motiva la tarea y
-la plataforma robótica elegida, revisa después el estado de la cuestión en las cuatro áreas que el
-trabajo cruza —aprendizaje por imitación, modelos fundacionales para robótica, simulación y
-teleoperación—, delimita a continuación el problema concreto que se aborda y termina recogiendo la
-normativa aplicable a un sistema de estas características.
+Este capítulo sitúa el trabajo. Comienza por el contexto industrial que motiva la tarea y por la
+plataforma robótica elegida, y justifica por qué todo el desarrollo se hace en simulación. Revisa
+después el estado de la cuestión en las áreas que el trabajo cruza —aprendizaje por imitación,
+políticas entrenadas desde cero, modelos visión-lenguaje-acción, control de humanoides, simulación,
+teleoperación y reconstrucción de escenas—, delimita a continuación el problema concreto que se
+aborda, con sus limitaciones, y termina recogiendo la normativa que afectaría a un despliegue real
+del sistema.
 
 
 \section{El contexto del problema}
 
 \subsection{La operación de válvulas en instalaciones de proceso}
 
-Descripción de la tarea real: qué es una válvula de compuerta de volante, dónde aparece en una
-instalación de proceso, por qué su accionamiento sigue siendo manual y qué riesgos conlleva. Se
-justifica aquí la elección de la tarea: es repetitiva, está bien definida, tiene un criterio de
-éxito objetivo y se realiza en entornos donde la presencia humana es costosa o peligrosa.
+Una instalación de proceso —una refinería, una planta de tratamiento de gas, una plataforma de
+extracción— es, vista de cerca, una red de tuberías interrumpida cada pocos metros por una válvula.
+Las de compuerta y las de globo accionadas por volante son las más numerosas: son baratas, robustas
+y no necesitan más energía que la del brazo de quien las gira. Una válvula de compuerta abre y cierra
+desplazando un disco perpendicular al flujo mediante un husillo roscado, de modo que pasar de cerrada
+a completamente abierta exige varias vueltas completas del volante; el modelo CAD empleado en este
+trabajo, tomado de una válvula real, autoriza seis vueltas y media de recorrido. El par necesario
+crece con el diámetro nominal y con la presión de la línea, y en una válvula que lleva meses sin
+moverse hay que sumar el de arranque.
+
+Pese a la extensión de la instrumentación, una fracción muy grande de esas válvulas sigue siendo
+manual y va a seguir siéndolo: motorizarlas todas es prohibitivo, y muchas solo se accionan en
+paradas, arranques o emergencias. Su operación recae en personal de campo que recorre la planta
+siguiendo hojas de ruta, y tiene tres características que la hacen candidata natural a la
+automatización. Es \textbf{repetitiva}: el gesto es el mismo válvula tras válvula. Es
+\textbf{físicamente exigente}: volantes a ras de suelo o por encima de la cabeza, pares de arranque
+altos, posturas forzadas. Y se realiza en \textbf{entornos hostiles}: temperaturas extremas, ruido y,
+sobre todo, zonas clasificadas como atmósferas potencialmente explosivas, en las que la mera
+presencia de una persona es un riesgo que hay que gestionar y en las que, durante un incidente, la
+operación manual es lo último que se quiere tener que hacer.
+
+No es casual que girar una válvula fuera una de las pruebas del \textit{DARPA Robotics Challenge}
+\cite{krotkov2017drc}, el concurso que en 2015 puso a los humanoides a realizar tareas de
+intervención en un escenario de accidente industrial, ni que las iniciativas de robótica para el
+sector —el reto ARGOS promovido por Total, o los despliegues de cuadrúpedos de inspección en
+plataformas marinas— la cuenten entre sus capacidades objetivo. Es una tarea con un criterio de
+éxito objetivo —la válvula abre o no abre—, bien delimitada y con valor directo. Y es, al mismo
+tiempo, una tarea que resiste mal el enfoque clásico de programar la trayectoria: la válvula puede
+estar montada en cualquier orientación, el volante exige un agarre firme y un giro sostenido, y el
+par de reacción se transmite por los brazos hasta la base del robot.
 
 \subsection{Robots humanoides como plataforma de intervención}
 
-Por qué un humanoide y no un manipulador sobre base móvil. El argumento se apoya en que la
-instalación está diseñada para el cuerpo humano —alturas, pasillos, escaleras, el propio diámetro
-del volante— y en la caída de precio de las plataformas comerciales. Se presenta el Unitree G1 y sus
-características relevantes para la tarea.
+La pregunta obvia es por qué un humanoide y no un manipulador sobre base móvil, que es una
+tecnología madura. La respuesta está en la instalación, no en el robot. Una planta de proceso está
+diseñada para el cuerpo humano: los pasillos tienen la anchura de una persona, los accesos son
+escaleras y pasos elevados de peldaños, los volantes están a la altura y a la distancia a la que un
+operario los alcanza de pie, y su diámetro es el que una mano agarra. Un robot con la morfología del
+operario hereda ese diseño sin reformar nada; cualquier otra morfología obliga a adaptar la planta o
+a renunciar a parte de ella.
+
+Lo que ha cambiado en los últimos tres años no es ese argumento, que es antiguo, sino el precio de la
+plataforma. Los humanoides de investigación de la década pasada eran prototipos únicos con
+presupuestos de siete cifras; hoy varios fabricantes venden humanoides completos por el precio de un
+vehículo industrial. El Unitree G1 \cite{unitree_g1}, empleado en este trabajo, es representativo de
+esa generación: un humanoide de tamaño reducido —del orden de 1,3\,m y 35\,kg—, con veintinueve
+grados de libertad en el cuerpo y, en la variante utilizada, manos de tres dedos con siete
+articulaciones actuadas cada una, hasta un total de cuarenta y tres. Es además la plataforma para la
+que NVIDIA distribuye su pila de aprendizaje para humanoides, lo que a efectos de este trabajo
+significa que existen un modelo de simulación mantenido, una política de equilibrio de cuerpo
+completo ya entrenada y una descripción del \textit{embodiment} para el modelo fundacional. Elegir
+otro robot habría supuesto reconstruir esas tres cosas.
+
+Su tamaño es también una restricción. Un G1 de pie alcanza con comodidad un volante frontal a unos
+43\,cm del pelvis y uno cenital a unos 30\,cm, distancias que se han medido con el operador dentro
+del sistema de teleoperación y que fijan dónde puede estar la válvula. Un humanoide de talla adulta
+tendría más alcance y más par; también más masa que controlar cuando el volante devuelve la
+reacción.
 
 \subsection{Por qué el trabajo se realiza en simulación}
+\label{sec:por-que-simulacion}
 
-Justificación metodológica y práctica: la evaluación estadística exige centenares de repeticiones
-con condiciones iniciales controladas, algo inviable sobre hardware físico en el plazo de un TFM.
-Se discute también qué se pierde por ello y cómo se ha intentado mitigar.
+El trabajo se realiza íntegramente en simulación por una razón metodológica y por dos prácticas.
+
+La metodológica es la que dimensiona el experimento. Comparar dos políticas con rigor exige
+evaluarlas muchas veces —en este trabajo, doscientas tiradas por política en la comparación
+principal y seiscientas más en la curva de eficiencia— y, sobre todo, exige evaluarlas sobre las
+\textbf{mismas} condiciones iniciales, de modo que cada episodio sea un par y el contraste
+estadístico pueda aprovecharlo. Sobre un robot físico, ni lo uno ni lo otro es viable en el plazo de
+un trabajo de fin de máster: reproducir la pose de una válvula al milímetro cientos de veces no es
+posible, y cada tirada cuesta minutos de preparación y expone al robot a una caída. En simulación,
+una semilla fija garantiza que la tirada $i$ de una política ve exactamente la escena que vio la
+tirada $i$ de la otra, y mil episodios son una noche de máquina.
+
+A pesar de haber dispuesto de un G1 físico durante el desarrollo, recoger demostraciones por teleoperación sobre el robot real habría requerido una infraestructura de seguridad —arnés, zona acotada, un segundo operador— que no estaba
+al alcance del proyecto.
+
+Conviene ser explícito sobre lo que se pierde. Primero, la dinámica de contacto: el agarre del
+volante y el par que devuelve son, en el simulador, lo que el motor de física y los parámetros de la
+articulación dicen que son, no lo que hace un volante de fundición. Segundo, el ruido de los sensores
+y las latencias de la plataforma real. Tercero, y más importante, que la política de equilibrio que
+sostiene al robot está aquí liberada de parte de su trabajo: la base del robot se fija durante la
+manipulación, una decisión que se justifica en el capítulo \ref{Solución} y que en un despliegue
+real no existiría.
+
+Se ha intentado mitigar esa distancia por tres vías. La válvula procede de un modelo CAD de una
+válvula real, no de una primitiva geométrica. Las imágenes que ven las políticas no muestran un
+fondo sintético, sino la reconstrucción fotorrealista de una oficina real obtenida a partir de vídeo
+(sección \ref{sec:gs-estado} y anexo \ref{Reconstrucción fotorrealista}). Y la evaluación no se
+limita a la tasa de éxito: mide también la latencia de inferencia en lazo cerrado, que es la
+magnitud que decidiría si la política cabe en el robot.
 
 
 \section{El estado de la cuestión}
 
 \subsection{Aprendizaje por imitación}
 
-Recorrido desde la clonación de comportamiento clásica \cite{pomerleau1988alvinn} hasta los métodos
-modernos, pasando por el problema de la deriva de distribución y las respuestas propuestas
-\cite{ross2011dagger}. Se establece aquí el vocabulario que el resto de la memoria emplea.
+El aprendizaje por imitación es la familia de técnicas que obtienen una política de control a
+partir de demostraciones, en lugar de a partir de una función de recompensa. Su forma más simple, la
+clonación de comportamiento (\textit{behavior cloning}), reduce el problema a uno de aprendizaje
+supervisado: se recogen pares observación--acción de un experto y se ajusta un modelo que prediga la
+segunda a partir de la primera. Es una idea antigua. ALVINN \cite{pomerleau1988alvinn} condujo un
+vehículo en 1988 con una red de tres capas que asociaba la imagen de una cámara a un ángulo de
+dirección, entrenada con las maniobras de un conductor humano.
+
+Su limitación fundamental también se conoce desde entonces, y tiene nombre: la deriva de
+distribución. La política se entrena sobre los estados que el experto visitó, pero al ejecutarse
+comete pequeños errores que la llevan a estados ligeramente distintos, sobre los que nunca vio una
+demostración y en los que sus errores son mayores; el proceso se realimenta. Ross \textit{et al.}
+\cite{ross2011dagger} formalizaron el problema —en el peor caso, el coste acumulado de la clonación
+ingenua crece con el cuadrado de la longitud del episodio— y propusieron DAgger como respuesta:
+alternar la ejecución de la política con el etiquetado por el experto de los estados que esta
+visita, de modo que el conjunto de entrenamiento acabe cubriendo la distribución que la propia
+política induce. DAgger exige un experto disponible en línea, lo que en la teleoperación de un
+humanoide es costoso, y por eso las aproximaciones actuales atacan la deriva por otro lado:
+prediciendo bloques de acciones en lugar de acciones aisladas, lo que reduce el número de decisiones
+en las que la política puede equivocarse y da a cada una un contexto temporal más largo; y, en los
+modelos fundacionales, apoyándose en un preentrenamiento que ha visto muchos más estados que las
+demostraciones de la tarea.
+
+Se fija aquí el vocabulario que emplea el resto de la memoria. Una \textbf{demostración} es un
+episodio completo ejecutado por el operador y grabado. Un \textbf{episodio} de evaluación es un
+intento de la política, que termina en éxito o por agotamiento del tiempo; cada uno de esos intentos
+es una \textbf{tirada} (\textit{rollout}). Una \textbf{política} es la función que asocia
+observaciones a acciones. Todos ellos, y los demás términos técnicos, están recogidos en el
+glosario.
 
 \subsection{Políticas de manipulación entrenadas desde cero}
 
-ACT \cite{zhao2023aloha} y su idea central de predecir bloques de acciones en lugar de acciones
-aisladas, y Diffusion Policy \cite{chi2023diffusion} como alternativa generativa. Se explica por qué
-ACT es el representante elegido para el brazo clásico de la comparación.
+Dentro de las arquitecturas específicas —entrenadas exclusivamente sobre las demostraciones de la
+tarea, sin preentrenamiento— dos han dominado los últimos tres años.
+
+ACT (\textit{Action Chunking with Transformers}) \cite{zhao2023aloha} nació junto con ALOHA, un
+sistema bimanual de bajo coste, con un objetivo declarado: aprender manipulación fina con pocas
+demostraciones, del orden de cincuenta, y hardware imperfecto. Su aportación es doble. La primera es
+el \textit{chunking}: la política no predice la siguiente acción sino un bloque de acciones futuras
+—en el trabajo original, un centenar de pasos a 50\,Hz—, lo que reduce el horizonte efectivo de la
+tarea y con él la acumulación de errores. La segunda es modelar las demostraciones con un
+autocodificador variacional condicional (CVAE): durante el entrenamiento, un codificador comprime la
+secuencia de acciones en una variable latente, y un decodificador basado en \textit{transformer}
+genera el bloque a partir de las imágenes, del estado articular y de esa variable; en inferencia, el
+latente se fija a cero y la política es determinista. El resultado es una arquitectura compacta, de
+decenas de millones de parámetros, rápida y muy extendida, lo que la convierte en el representante
+natural del brazo clásico de esta comparación.
+
+Diffusion Policy \cite{chi2023diffusion} es la alternativa generativa. En lugar de regresar el bloque
+de acciones, lo obtiene por un proceso de difusión que parte de ruido y lo refina en varios pasos
+condicionados por la observación. Su ventaja está en las demostraciones multimodales: cuando hay
+varias formas válidas de hacer lo mismo, una regresión aprende la media, que no es ninguna de ellas,
+y un modelo generativo puede elegir una. A cambio, cada inferencia requiere varias evaluaciones de
+la red.
+
+Se ha elegido ACT y no Diffusion Policy para el brazo clásico por tres razones. Es la arquitectura
+más extendida y mejor documentada, con una implementación de referencia mantenida en LeRobot. Su
+inferencia es de una sola pasada, lo que hace más limpia la medida de latencia. Y la tarea, tal como
+se ha grabado —un único operador, un gesto de agarre fijado de antemano—, no es especialmente
+multimodal, de modo que la ventaja principal de la difusión no tendría ocasión de manifestarse.
+Nada impide añadir Diffusion Policy como tercer brazo: el \textit{pipeline} de datos y el banco de evaluación
+le servirían sin cambios.
 
 \subsection{Modelos visión-lenguaje-acción}
 
-De RT-1 \cite{brohan2022rt1} y RT-2 \cite{brohan2023rt2} a OpenVLA \cite{kim2024openvla} y
-$\pi_0$ \cite{black2024pi0}. Qué aporta el preentrenamiento a gran escala, qué promete en términos
-de generalización y qué cuesta en cómputo.
+La otra familia parte de una observación: los grandes modelos de visión y lenguaje ya saben mucho
+del mundo —qué es una válvula, dónde tiene el volante, qué significa «abrir»— y ese conocimiento
+puede transferirse al control si se enseña al modelo a emitir acciones.
+
+La trayectoria es reciente y rápida. RT-1 \cite{brohan2022rt1} demostró en 2022 que un
+\textit{transformer} entrenado sobre unos 130\,000 episodios reales, recogidos durante diecisiete
+meses con una flota de trece robots, generalizaba a cientos de tareas descritas en lenguaje natural.
+RT-2 \cite{brohan2023rt2} dio el paso decisivo: en lugar de entrenar un modelo de control desde cero,
+tomó modelos visión-lenguaje preentrenados sobre la web y los ajustó para que produjeran las
+acciones como si fueran texto —una secuencia de \textit{tokens} que codifican el desplazamiento del
+efector—. Acuñó el término \textit{vision-language-action} y mostró generalización a objetos y
+conceptos que no aparecían en los datos robóticos. OpenVLA \cite{kim2024openvla} llevó esa receta a
+un modelo abierto de siete mil millones de parámetros, entrenado sobre casi un millón de episodios
+de Open X-Embodiment \cite{oxe2023}, y mostró que el ajuste fino con adaptadores de bajo rango basta
+para adaptarlo a un robot nuevo. $\pi_0$ \cite{black2024pi0} cambió la forma de generar la acción: en
+lugar de \textit{tokens} discretos, un «experto de acción» separado produce bloques continuos de
+acciones mediante \textit{flow matching}, lo que permite emitirlas a 50\,Hz con la destreza que
+exige, por ejemplo, doblar ropa.
+
+Lo que esta familia promete es generalización —a instancias del objeto no vistas, a variaciones de
+la escena, a instrucciones nuevas— con menos demostraciones de la tarea concreta que una
+arquitectura entrenada desde cero. Lo que cuesta es cómputo. Los VLA tienen entre uno y dos órdenes
+de magnitud más parámetros que ACT, su ajuste fino requiere aceleradoras de gama profesional y su
+inferencia tarda decenas de milisegundos donde ACT tarda unidades. Si esa diferencia importa depende
+del presupuesto de tiempo del lazo de control, y por eso se mide en el capítulo \ref{Evaluación}.
 
 \subsection{GR00T y el control de humanoides}
 
-El modelo empleado en el trabajo \cite{nvidia2025gr00t}: arquitectura de dos sistemas, generación de
-acciones por \textit{flow matching} y mecanismo de adaptación a nuevos \textit{embodiments}. Se
-describe también la capa de control de cuerpo completo sobre la que se apoya la manipulación.
+GR00T N1 \cite{nvidia2025gr00t} es el modelo fundacional de NVIDIA para humanoides, y su variante
+N1.7 es la empleada en este trabajo. Su arquitectura es de dos sistemas, por analogía con la
+cognición humana. El «sistema 2» es un modelo visión-lenguaje que procesa las imágenes y la
+instrucción y produce una representación de la escena a baja frecuencia. El «sistema 1» es un
+\textit{transformer} de difusión que, condicionado por esa representación y por el estado del robot,
+genera bloques de acciones continuas mediante \textit{flow matching}, en la línea de $\pi_0$. Ambos
+se entrenan de extremo a extremo.
+
+Dos rasgos lo hacen especialmente adecuado a este trabajo. El primero es que está diseñado para
+servir a varios \textit{embodiments}: el estado y la acción de cada robot pasan por codificadores y
+decodificadores propios —pequeñas redes que se entrenan durante el ajuste fino— mientras el núcleo
+del modelo es común. Incorporar el G1 con la configuración de este trabajo consiste en describir su
+espacio de estado y de acción, no en modificar el modelo. El segundo es la «pirámide de datos» con
+la que se preentrenó: en la base, vídeo humano y de la web; en el medio, datos sintéticos generados
+en simulación; en la cúspide, teleoperación real de humanoides. Es un preentrenamiento que ha visto
+humanoides manipulando, lo que no puede decirse de los VLA anteriores, entrenados sobre brazos de
+sobremesa.
+
+El modelo produce acciones para el tren superior; mantener al humanoide de pie mientras las ejecuta
+es un problema distinto, y en este trabajo lo resuelve una capa separada. Es la arquitectura habitual
+en manipulación con humanoides: una política de control de cuerpo completo (\textit{whole-body
+control}, WBC), entrenada por refuerzo en simulación, gobierna las piernas y mantiene el equilibrio,
+y recibe de arriba órdenes de alto nivel —velocidad de avance, altura del pelvis, orientación del
+torso—, mientras las poses de las muñecas que marca la política de manipulación se convierten en
+ángulos articulares mediante cinemática inversa. La política de imitación aprende, por tanto, sobre
+un robot que ya sabe estar de pie. Esa división es lo que hace tratable el problema: el espacio de
+acción que aprende la política tiene veintitrés dimensiones, no cuarenta y tres.
 
 \subsection{Entornos de simulación y formatos de conjuntos de datos}
 
-Isaac Sim, Isaac Lab \cite{mittal2023orbit} e Isaac Lab Arena como pila empleada; alternativas
-consideradas y descartadas. El formato LeRobot \cite{cadene2024lerobot} como denominador común entre
-ambos métodos, y el papel de iniciativas de agregación de datos como Open X-Embodiment
-\cite{oxe2023}.
+La pila de simulación empleada es la de NVIDIA. Isaac Sim \cite{isaacsim} es el simulador: motor de
+física PhysX, render por trazado de rayos y escenas descritas en USD. Isaac Lab
+\cite{mittal2023orbit}, nacido como Orbit, es el marco de aprendizaje construido sobre él: aporta la
+ejecución paralela en GPU de miles de entornos, la definición modular de una tarea mediante gestores
+de observaciones, acciones, recompensas y terminaciones, y los adaptadores para las bibliotecas de
+aprendizaje. Isaac Lab Arena \cite{isaaclab_arena} es la capa más reciente: compone escenas de
+manipulación a partir de un registro de activos —robots, objetos, fondos— y añade la infraestructura
+de teleoperación, grabación de demostraciones, conversión de datos y evaluación de políticas,
+incluidas las que se ejecutan en otro proceso.
+
+Se consideraron y descartaron dos alternativas. MuJoCo, por su precisión de contacto y su bajo coste
+de cómputo, habría sido una opción razonable para la física, pero no dispone del sistema de
+teleoperación en realidad mixta ni del \textit{embodiment} del G1 con su política de equilibrio ya
+integrada, y reconstruir ambas cosas no cabía en el plazo. Dentro de la propia pila de NVIDIA se
+consideró generar las demostraciones automáticamente con Isaac Lab Mimic, que multiplica un puñado
+de demostraciones humanas recombinando sus segmentos, y se rechazó como riesgo de calendario: exige
+anotar la estructura de la tarea y no estaba probado sobre este \textit{embodiment}.
+
+En cuanto a los datos, el denominador común es el formato LeRobot \cite{cadene2024lerobot}, de
+Hugging Face: cada episodio como filas de un fichero \textit{parquet} con el estado y la acción, las
+imágenes como vídeo comprimido, y metadatos que describen las modalidades. Es el formato que
+consumen las implementaciones de referencia de ACT y de Diffusion Policy, y el que GR00T adopta con
+una extensión —un fichero de modalidades que asigna rangos del vector de estado a partes del
+cuerpo— que ACT simplemente ignora. Esa compatibilidad es la que permite que una sola conversión
+alimente a los dos métodos. Detrás del formato hay un movimiento más amplio de agregación de datos
+robóticos, del que Open X-Embodiment \cite{oxe2023} —más de un millón de trayectorias de veintidós
+\textit{embodiments}, aportadas por veintiuna instituciones— es el exponente principal, y que es lo
+que ha hecho posibles los VLA abiertos.
 
 \subsection{Teleoperación en realidad mixta}
 
-Captura de movimiento con gafas y mandos comerciales, \textit{retargeting} a un cuerpo de
-proporciones distintas y transmisión del vídeo estereoscópico. Es la vía por la que se generan las
-demostraciones.
+Las demostraciones hay que grabarlas, y la forma de hacerlo condiciona su calidad. Para brazos de
+sobremesa la solución dominante son los dispositivos maestro--esclavo —ALOHA es el ejemplo—, en los
+que el operador mueve una réplica pasiva del robot. Para un humanoide no hay réplica que mover: la
+captura debe hacerse sobre el cuerpo del operador.
+
+La vía que se ha impuesto es la realidad mixta con dispositivos de consumo. Unas gafas con
+seguimiento de cabeza y de manos —o mandos— proporcionan la pose de la cabeza y de las muñecas del
+operador varias decenas de veces por segundo; un módulo de \textit{retargeting} traslada esas poses
+al cuerpo del robot, que tiene otras proporciones y otras articulaciones; y el vídeo estereoscópico
+de las cámaras del robot se devuelve a las gafas, de modo que el operador ve lo que el robot ve y
+cierra el lazo con su propia percepción. Open-TeleVision \cite{cheng2024television} es una
+referencia reciente de este esquema.
+
+En este trabajo las gafas son unas PICO 4 Ultra \cite{pico4ultra}, un visor autónomo: lleva su
+propio procesador y no está unido a ningún ordenador por cable. Eso plantea un problema, porque el
+simulador necesita una aceleradora de gama profesional y no puede ejecutarse en el visor. Lo
+resuelve NVIDIA CloudXR \cite{nvidia_cloudxr}, la capa de transmisión que separa dónde se renderiza
+de dónde se muestra: el simulador genera las dos vistas estereoscópicas en la estación de trabajo,
+CloudXR las codifica como vídeo y las envía por la red al visor, y en sentido contrario recibe la
+pose de la cabeza y de los mandos varias decenas de veces por segundo y se la entrega al simulador
+a través de la interfaz OpenXR. Para el sistema, el visor es un cliente de vídeo con sensores; para
+el operador, está dentro de la escena. Los mandos son la fuente de la pose de las muñecas y el
+gatillo la orden de cierre de la mano; el capítulo \ref{Solución} documenta el montaje y los
+problemas que dio.
+
+Dos propiedades de esta vía importan para lo que viene después. La primera es que el operador forma
+parte del sistema: su fatiga, sus hábitos y sus errores quedan grabados, y la política los copia. Por
+eso las sesiones de grabación se limitan a veinticinco demostraciones, y por eso el gesto de agarre
+se fijó antes de grabar el conjunto definitivo. La segunda es que la latencia entre el movimiento
+del operador y la imagen que recibe determina cuánto puede afinar; un fondo costoso de renderizar
+la empeora, y ese es el motivo por el que el fondo fotorrealista no se aplica durante la grabación.
 
 \subsection{Realismo visual mediante reconstrucción de escenas}
+\label{sec:gs-estado}
 
-\textit{Gaussian Splatting} \cite{kerbl2023gaussian} como forma de dotar a la simulación de un fondo
-fotorrealista procedente de una captura real, y su papel en reducir la distancia entre las imágenes
-de entrenamiento y las de un despliegue posterior.
+Una política que aprende de imágenes aprende también del fondo. Si las imágenes de entrenamiento
+muestran un plano gris bajo una luz uniforme, la política no tiene motivo para ignorarlo y, puesta
+ante una escena real, verá algo que nunca vio. Los fondos sintéticos tradicionales, modelados a mano,
+mitigan el problema a un coste de modelado alto y con un realismo limitado.
+
+La reconstrucción neuronal de escenas ofrece otra vía: capturar un entorno real con una cámara y
+obtener una representación que pueda renderizarse desde cualquier punto de vista. Los campos de
+radiancia neuronales abrieron la línea, pero su render era demasiado lento para un simulador
+interactivo. El \textit{Gaussian Splatting} tridimensional \cite{kerbl2023gaussian} resolvió esa
+limitación representando la escena como millones de gaussianas anisótropas explícitas —cada una con
+posición, covarianza, opacidad y color dependiente de la dirección de vista— que se optimizan a
+partir de las imágenes y se rasterizan en tiempo real con una calidad comparable a la de los mejores
+campos de radiancia. NVIDIA lo ha integrado en Omniverse bajo el nombre de NuRec, lo que permite
+cargar una de esas reconstrucciones como un activo más de una escena USD y renderizarla desde la
+cámara del robot.
+
+En este trabajo el fondo es la reconstrucción de una oficina real. Su papel es acercar las imágenes
+de entrenamiento a las de un despliegue, y su coste —unos cuarenta milisegundos por paso de
+simulación— es lo que obliga a aplicarlo a posteriori, reproduciendo las demostraciones con el
+fondo cargado. Cómo se hace, y el problema que planteó, se desarrollan en el anexo
+\ref{Reconstrucción fotorrealista}.
 
 
 \section{La definición del problema}
 
-Enunciado explícito del problema abordado y de las limitaciones encontradas, redactado en lenguaje
-directo. El núcleo del argumento: existen resultados abundantes de cada familia de métodos por
-separado, pero muy pocos que las enfrenten sobre la misma tarea, el mismo conjunto de datos y el
-mismo criterio de éxito, con un contraste estadístico que tenga en cuenta el emparejamiento de las
-condiciones iniciales. Se enumeran a continuación las limitaciones concretas que el trabajo asume:
-ausencia de robot físico, una sola tarea, una sola semilla de entrenamiento por configuración y un
-plazo acotado.
+El problema que aborda este trabajo cabe en una frase: \textbf{dado un conjunto de demostraciones
+teleoperadas de la apertura de una válvula de volante con un humanoide, determinar, en condiciones
+idénticas y con el contraste estadístico apropiado, si un modelo fundacional visión-lenguaje-acción
+ajustado a la tarea supera a una política de imitación clásica entrenada desde cero, y a qué coste
+en datos y en latencia.} Resolverlo exige, antes, construir el sistema que lo hace medible: la
+tarea, el \textit{pipeline} de datos y el banco de evaluación.
+
+El argumento que lo motiva es el vacío que deja la literatura. Cada familia acumula resultados por
+separado: los VLA publican tasas de éxito sobre sus propios conjuntos de tareas, y las arquitecturas
+específicas sobre los suyos. Cuando se comparan entre sí, suele ser dentro del artículo que presenta
+uno de los métodos, sobre tareas elegidas por sus autores, con conjuntos de datos que no siempre
+coinciden y con una comparación de proporciones independientes como único contraste, cuando hay
+alguno. Faltan comparaciones en las que la tarea, los datos, el criterio de éxito y las condiciones
+iniciales sean los mismos para ambos métodos, y en las que el contraste aproveche ese
+emparejamiento. Sin ellas, la elección del método para un despliegue concreto se toma sobre el
+tamaño del modelo y la reputación de la familia, no sobre evidencia.
+
+Para que la comparación sea limpia, el trabajo asume las restricciones siguientes, que son a la vez
+sus limitaciones:
+
+\begin{itemize}
+
+	\item \textbf{Una sola tarea.} La apertura de la válvula, en dos disposiciones y con la posición
+	aleatorizada. Los resultados describen esa tarea; lo que se transfiere a otras es el banco de
+	comparación, no las cifras.
+
+	\item \textbf{Sin validación sobre el robot físico.} Todo ocurre en simulación, con las pérdidas descritas en la
+	sección \ref{sec:por-que-simulacion}. La distancia entre el simulador y el robot no se mide.
+
+	\item \textbf{Una única semilla de entrenamiento por configuración.} Cada punto de la curva de
+	eficiencia es un solo entrenamiento, de modo que la variación entre puntos mezcla el efecto de
+	los datos con la varianza del propio entrenamiento.
+
+	\item \textbf{Un único operador.} Las cien demostraciones las grabó la misma persona. Eso da un
+	gesto consistente, que facilita el aprendizaje, y a la vez sesga el conjunto hacia un estilo.
+
+	\item \textbf{Una base fija.} La pelvis del robot se inmoviliza durante la manipulación; la
+	política de equilibrio sigue activa, pero no tiene que absorber el par de reacción del volante.
+
+	\item \textbf{Un plazo acotado.} El trabajo debía cerrarse antes de finales de agosto de 2026, lo
+	que fijó el tamaño del conjunto de datos en cien demostraciones y la comparación en dos brazos.
+
+\end{itemize}
+
+Ninguna de ellas se oculta en el análisis: el capítulo \ref{Evaluación} dedica una sección a las
+amenazas a la validez que derivan de ellas.
 
 
 \section{Normativa asociada}
 
-Enumeración y descripción de la normativa que afectaría a un proyecto de este tipo llevado a
-despliegue real. Se organiza en tres bloques: seguridad de máquinas y robótica industrial, atmósferas
-potencialmente explosivas —determinante en el contexto del petróleo y el gas— y regulación de los
-sistemas de inteligencia artificial.
+Todo el trabajo se desarrolla en simulación, de modo que ninguna norma le es directamente exigible.
+Pero el sistema que estudia —un robot autónomo que manipula válvulas en una planta de proceso— está
+regulado en todos sus aspectos, y un dictamen sobre su viabilidad que ignorase ese marco estaría
+incompleto. Se recoge aquí la normativa que afectaría a un despliegue, organizada en cuatro bloques,
+señalando en cada uno qué implicaría para un sistema basado en aprendizaje. La tabla
+\ref{tab:normativa} la resume.
+
+\textbf{Seguridad de máquinas y robótica.} Un robot es una máquina, y el marco legal europeo para las
+máquinas es la Directiva 2006/42/CE, que el Reglamento (UE) 2023/1230 sustituye a partir de enero de
+2027. El nuevo reglamento es relevante para este trabajo por una razón concreta: considera de forma
+explícita los componentes de seguridad con comportamiento total o parcialmente autoevolutivo basado
+en aprendizaje automático, y les exige evaluación de conformidad por un organismo notificado. Por
+debajo del marco legal, ISO 12100 fija la metodología de evaluación del riesgo; ISO 10218-1 y -2
+recogen los requisitos del robot industrial y de su integración; ISO/TS 15066 los límites de
+contacto para robots que comparten espacio con personas, que un humanoide en una planta comparte
+por definición; e ISO 13849-1 el diseño de las partes del sistema de mando relacionadas con la
+seguridad.
+
+\textbf{Atmósferas potencialmente explosivas.} Es el bloque determinante en el contexto del petróleo
+y el gas. La Directiva 2014/34/UE, transpuesta por el Real Decreto 144/2016, regula los equipos
+destinados a zonas clasificadas, y la Directiva 1999/92/CE, transpuesta por el Real Decreto
+681/2003, la clasificación de esas zonas y la protección de los trabajadores; la serie IEC 60079
+contiene los requisitos técnicos del material eléctrico. Un humanoide —baterías de litio, motores,
+electrónica de potencia— es, desde este punto de vista, un equipo eléctrico que habría que certificar
+para la zona en la que opere, y esa certificación es, hoy, el obstáculo más serio para llevar un
+sistema como este a una zona clasificada. Un despliegue realista empezaría en áreas no clasificadas
+o en zona 2.
+
+\textbf{Seguridad funcional.} IEC 61508 establece los requisitos de los sistemas eléctricos,
+electrónicos y programables relacionados con la seguridad, e IEC 61511 los particulariza para los
+sistemas instrumentados de seguridad de la industria de proceso, que son los que protegen la planta
+en la que el robot actuaría. El informe técnico ISO/IEC TR 5469 aborda la relación entre seguridad
+funcional y sistemas de inteligencia artificial, y su conclusión práctica es la que cualquier
+arquitectura de despliegue debería adoptar: la política aprendida no puede estar en el camino de
+seguridad. Los límites de par, la parada de emergencia y la vigilancia de la posición del robot
+deben garantizarlos capas deterministas, y la política solo debe decidir cómo se ejecuta la tarea
+dentro de ellos.
+
+\textbf{Inteligencia artificial.} El Reglamento (UE) 2024/1689 clasifica como de alto riesgo los
+sistemas de inteligencia artificial que son componentes de seguridad de productos cubiertos por la
+legislación de armonización, entre ellos las máquinas. Un sistema como el estudiado quedaría en esa
+categoría, con las obligaciones que conlleva: gestión de riesgos, gobernanza de los datos de
+entrenamiento, documentación técnica, registro de la actividad, supervisión humana y requisitos de
+exactitud y robustez. La documentación del conjunto de datos y del protocolo de evaluación que esta
+memoria recoge, y que en un trabajo académico es una cuestión de rigor, sería en un despliegue una
+obligación legal.
 
 \begin{table*}[ht]
 	\centering
 	\caption{Normativa aplicable a un despliegue del sistema}
 	\label{tab:normativa}
 	\makebox[\textwidth]{
-		\begin{tabular}{|l|p{9cm}|}
-			\cline{1-2}
-			Referencia & Ámbito \\ \hline
-			ISO 12100 & Seguridad de las máquinas: principios generales de diseño y evaluación del riesgo \\
-			ISO 10218-1/-2 & Requisitos de seguridad para robots industriales y su integración \\
-			ISO/TS 15066 & Robots colaborativos: límites de contacto entre robot y persona \\
-			ISO 13849-1 & Partes de los sistemas de mando relativas a la seguridad \\
-			IEC 61508 & Seguridad funcional de sistemas eléctricos y electrónicos programables \\
-			Directiva 2014/34/UE (ATEX) & Equipos destinados a atmósferas potencialmente explosivas \\
-			Reglamento (UE) 2024/1689 & Reglamento europeo de inteligencia artificial \\
-			ISO 690 & Referencias bibliográficas, norma seguida en esta memoria \\ \hline
+		\begin{tabular}{|p{2.6cm}|p{3.7cm}|p{8cm}|}
+			\cline{1-3}
+			Bloque & Referencia & Ámbito \\ \hline
+			Máquinas y robótica & Reglamento (UE) 2023/1230 & Máquinas; sustituye a la Directiva 2006/42/CE e incluye las funciones de seguridad basadas en aprendizaje automático \\
+			 & ISO 12100 & Principios generales de diseño y evaluación del riesgo \\
+			 & ISO 10218-1/-2 & Robots industriales: requisitos del robot y de su integración \\
+			 & ISO/TS 15066 & Robots colaborativos: límites de contacto entre robot y persona \\
+			 & ISO 13849-1 & Partes de los sistemas de mando relativas a la seguridad \\ \hline
+			Atmósferas explosivas & Directiva 2014/34/UE & Equipos para atmósferas potencialmente explosivas (RD 144/2016) \\
+			 & Directiva 1999/92/CE & Clasificación de zonas y protección de los trabajadores (RD 681/2003) \\
+			 & IEC 60079 (serie) & Requisitos técnicos del material eléctrico para atmósferas explosivas \\ \hline
+			Seguridad funcional & IEC 61508 & Sistemas eléctricos, electrónicos y programables relacionados con la seguridad \\
+			 & IEC 61511 & Sistemas instrumentados de seguridad en la industria de proceso \\
+			 & ISO/IEC TR 5469 & Seguridad funcional y sistemas de inteligencia artificial \\ \hline
+			Inteligencia artificial & Reglamento (UE) 2024/1689 & Reglamento europeo de inteligencia artificial: sistemas de alto riesgo \\ \hline
 		\end{tabular}
 	}
 \end{table*}
+
+Por último, y en otro plano, las referencias bibliográficas de esta memoria siguen la norma ISO 690,
+tal como establece la plantilla de la titulación.

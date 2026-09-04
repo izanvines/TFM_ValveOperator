@@ -9,60 +9,93 @@
 
 Catálogo de términos específicos del contexto del trabajo. Se recogen tanto los conceptos de
 aprendizaje automático como la terminología de simulación y de control de robots humanoides que
-aparece a lo largo de la memoria, así como los nombres propios de las herramientas empleadas.
+aparece a lo largo de la memoria, así como los nombres propios de las herramientas empleadas y los
+contrastes estadísticos con los que se analizan los resultados.
 
 
 \begin{description}
 
-	\item[aprendizaje por imitación]: Familia de técnicas en las que una política de control se
-	obtiene a partir de demostraciones de un experto, en lugar de mediante una función de
-	recompensa. Se abrevia habitualmente como IL, del inglés \textit{imitation learning}.
-
-	\item[apertura (\textit{openness})]: Magnitud normalizada entre 0 y 1 con la que el simulador
-	expresa cuánto se ha abierto un elemento articulado, calculada sobre los límites de su
-	articulación. En este trabajo, una apertura de 0,5 equivale a media vuelta del volante y es el
-	umbral de éxito.
-
-	\item[ACT]: \textit{Action Chunking with Transformers}. Política de imitación basada en un
+	\item[ACT (\textit{Action Chunking with Transformers})]: Política de imitación basada en un
 	autocodificador variacional condicional que predice bloques de acciones futuras en lugar de
 	una acción aislada.
 
-	\item[AGILE]: Política de control de cuerpo completo, distribuida como red neuronal en formato
-	ONNX, encargada de mantener el equilibrio del humanoide durante la manipulación.
+	\item[AGILE]: Política de control de cuerpo completo (aunque también con posibilidad de
+	desacoplar torso inferior y torso superior), desarrollada por NVIDIA e implementada como red
+	neuronal en formato ONNX, encargada de mantener el equilibrio del humanoide durante la
+	manipulación.
 
-	\item[\textit{behavior cloning}]: Enfoque más directo del aprendizaje por imitación: se ajusta
+	\item[Ajuste fino (\textit{fine-tuning})]: Reentrenamiento de un modelo ya preentrenado sobre
+	los datos de una tarea concreta, partiendo de sus pesos en lugar de una inicialización
+	aleatoria. Es la vía por la que GR00T se adapta a la tarea de este trabajo.
+
+	\item[Apertura (\textit{openness})]: Magnitud normalizada entre 0 y 1 que expresa cuánto se ha
+	abierto un elemento articulado, calculada sobre los límites de su articulación. En este
+	trabajo, una apertura de 0,5 equivale a media vuelta del volante y es el umbral de éxito.
+
+	\item[Aprendizaje por imitación (\textit{Imitation learning}, IL)]: Familia de técnicas en las
+	que una política de control se obtiene a partir de demostraciones de un experto, en lugar de
+	mediante una función de recompensa definida de forma explícita.
+
+	\item[\textit{Behavior cloning}]: Enfoque más directo del aprendizaje por imitación: se ajusta
 	un modelo supervisado que asocia observaciones a acciones sobre el conjunto de
 	demostraciones, sin interacción adicional con el entorno.
 
-	\item[\textit{chunk} de acciones]: Bloque de acciones consecutivas que la política emite de una
+	\item[\textit{Chunk} de acciones]: Bloque de acciones consecutivas que la política emite de una
 	sola inferencia. En este trabajo el bloque es de 40 pasos, que a 50\,Hz equivalen a 0,8
 	segundos de tiempo de robot.
 
-	\item[CVAE]: \textit{Conditional Variational Autoencoder}. Autocodificador variacional
+	\item[Cinemática inversa (IK)]: Cálculo de las posiciones articulares necesarias para que un
+	extremo del robot alcance una pose dada. Es el problema que resuelve Pink IK para llevar las
+	muñecas a donde las coloca el operador.
+
+	\item[CVAE (\textit{Conditional Variational Autoencoder})]: Autocodificador variacional
 	condicionado, arquitectura sobre la que se construye ACT.
 
-	\item[disposición cenital]: Colocación de la válvula con el volante mirando hacia arriba y el
+	\item[Deriva de distribución (\textit{distribution shift})]: Es el problema característico del
+	aprendizaje por imitación: al ejecutarse, la política visita estados que no aparecían en las
+	demostraciones, donde sus errores se acumulan y la alejan aún más de aquello que sabe hacer.
+
+	\item[\textit{Diffusion Policy}]: Política de imitación que genera las acciones mediante un
+	proceso de difusión. Es la alternativa a ACT dentro de la familia de métodos entrenados desde
+	cero.
+	
+	\item[Disposición cenital]: Colocación de la válvula con el volante mirando hacia arriba y el
 	eje de giro vertical, correspondiente a una válvula montada sobre una línea horizontal. El
 	robot la alcanza por encima.
 
-	\item[disposición frontal]: Colocación de la válvula con el volante encarado al robot y el eje
+	\item[Disposición frontal]: Colocación de la válvula con el volante encarado al robot y el eje
 	de giro horizontal, correspondiente a una válvula sobre una línea vertical. Se gira como el
 	timón de un barco.
 
-	\item[DoF]: \textit{Degrees of Freedom}, grados de libertad. Número de articulaciones
+	\item[DoF (\textit{Degrees of Freedom})]: Grados de libertad. Número de articulaciones
 	independientes de un mecanismo.
 
-	\item[\textit{embodiment}]: Descripción del cuerpo del robot que una política asume: qué
+	\item[\textit{Embodiment}]: Descripción del cuerpo del robot que una política asume: qué
 	articulaciones tiene, en qué orden y cómo se le envían las órdenes. Un mismo modelo puede
 	servir a varios \textit{embodiments}.
 
-	\item[\textit{flow matching}]: Técnica generativa que aprende un campo de velocidades capaz de
+	\item[Episodio]: Cada ejecución de la tarea desde el reinicio del entorno hasta que se alcanza
+	el éxito o se agota el presupuesto de tiempo asignado. Un episodio que se agota por tiempo se
+	considera fallido.
+
+	\item[\textit{End-to-end}]: Enfoque en el que un único modelo aprende directamente de la
+	observación cruda a la acción de control, sin etapas intermedias diseñadas a mano ni módulos
+	independientes de percepción y planificación. Es la propiedad que comparten GR00T y ACT, y la
+	razón por la que ambos se sirven a través del mismo protocolo de evaluación.
+
+	\item[Espacio de acción]: Conjunto de magnitudes que la política emite en cada paso para
+	gobernar al robot. En este trabajo tiene veintitrés dimensiones: el estado de las dos manos, la
+	pose de ambas muñecas, las órdenes de locomoción, la altura del pelvis y la orientación del
+	torso.
+
+	\item[\textit{Flow matching}]: Técnica generativa que aprende un campo de velocidades capaz de
 	transportar ruido hasta la distribución objetivo. Es el mecanismo con el que GR00T genera sus
 	acciones.
 
 	\item[\textit{Gaussian Splatting}]: Técnica de reconstrucción y representación de escenas
 	tridimensionales mediante nubes de primitivas gaussianas, que permite renderizar en tiempo
-	real un entorno capturado a partir de vídeo real.
+	real y de manera fotorrealista un entorno capturado a partir de vídeo real, y contribuye así a
+	reducir la brecha entre simulación y realidad.
 
 	\item[GR00T]: Familia de modelos fundacionales de NVIDIA para control de robots humanoides. La
 	variante empleada aquí, GR00T N1.7, es un modelo visión-lenguaje-acción de 3140 millones de
@@ -71,37 +104,90 @@ aparece a lo largo de la memoria, así como los nombres propios de las herramien
 	\item[HDF5]: Formato de fichero jerárquico para conjuntos de datos científicos. Es el que
 	produce el grabador de demostraciones del simulador.
 
+	\item[Intervalo de Wilson]: Método de cálculo del intervalo de confianza de una proporción
+	que, a diferencia del intervalo normal, se mantiene dentro de $[0,1]$ cuando la proporción se
+	acerca a los extremos. Es el caso de las tasas de éxito de este trabajo, próximas al 90\,\%.
+
 	\item[Isaac Lab Arena]: Marco de trabajo de NVIDIA, construido sobre Isaac Lab e Isaac Sim, que
 	compone escenas de manipulación a partir de un registro de recursos y ofrece la infraestructura
-	de grabación y evaluación de políticas.
+	de grabación y evaluación de políticas en su conjunto.
+
+	\item[Latencia de inferencia]: Tiempo que tarda la política en producir un bloque de acciones a
+	partir de una observación. Se contrasta contra el presupuesto que impone el lazo de control.
+
+	\item[Lazo de control]: Ciclo de percepción y acción del robot. Aquí opera a 50\,Hz y, como la
+	política emite bloques de 40 pasos, dispone de 0,8 segundos para cada inferencia.
 
 	\item[LeRobot]: Biblioteca y formato de conjuntos de datos de \textit{Hugging Face} para
 	aprendizaje de políticas robóticas. Almacena los episodios como ficheros \textit{parquet} más
 	vídeo comprimido.
 
+	\item[Modelo fundacional (\textit{foundation model})]: Modelo de gran tamaño preentrenado sobre
+	volúmenes masivos de datos heterogéneos y concebido para adaptarse después a tareas concretas
+	mediante ajuste fino. GR00T es el representante de esta familia en el trabajo.
+
 	\item[NuRec]: Componente de Omniverse que permite incorporar reconstrucciones neuronales de
 	escenas reales, en este trabajo la representación por \textit{Gaussian Splatting} de una
 	oficina.
 
-	\item[Pink IK]: Resolvedor de cinemática inversa por tareas ponderadas, empleado para convertir
-	las poses de las muñecas que marca el operador en órdenes articulares para los brazos.
+	\item[ONNX (\textit{Open Neural Network Exchange})]: Formato abierto de intercambio de redes
+	neuronales, que permite ejecutar un modelo entrenado con una biblioteca desde otra distinta.
+	Es el formato en el que se distribuye la política AGILE.
 
-	\item[\textit{retargeting}]: Traslación del movimiento capturado de un operador humano al cuerpo
+	\item[\textit{Pipeline}]: Secuencia de etapas encadenadas por las que pasan los datos desde la
+	teleoperación hasta la política evaluada: grabación, conversión al formato de
+	LeRobot, entrenamiento y evaluación. Cada etapa consume la salida de la anterior, de modo que un error
+	silencioso en una etapa temprana invalida todo el trabajo posterior sin producir ningún
+	síntoma visible.
+
+	\item[Pink IK]: Resolvedor de cinemática inversa por tareas ponderadas, empleado para convertir
+	las poses de las muñecas que marca el operador, mediante un dispositivo de VR, en órdenes
+	articulares para los brazos del robot en la simulación.
+
+	\item[Política (\textit{policy})]: Función que asocia a cada observación del robot la acción que
+	debe ejecutar. Es el objeto que producen ambos métodos comparados y sobre el que se mide la
+	tasa de éxito.
+
+	\item[Preentrenamiento]: Fase previa en la que un modelo aprende sobre un corpus amplio y ajeno
+	a la tarea final. Es lo que distingue a un modelo fundacional de una arquitectura entrenada
+	desde cero.
+
+	\item[Prueba exacta de Fisher]: Contraste de independencia entre dos variables categóricas
+	sobre muestras pequeñas. Aquí se emplea para medir el efecto de la disposición de la válvula
+	sobre la tasa de éxito.
+
+	\item[Prueba exacta de McNemar]: Contraste para datos emparejados dicotómicos. Emplea
+	únicamente los casos discordantes —aquellos en los que una política acierta y la otra falla— y
+	es el contraste apropiado para comparar dos políticas evaluadas sobre las mismas condiciones
+	iniciales.
+
+	\item[\textit{Retargeting}]: Traslación del movimiento capturado de un operador humano al cuerpo
 	del robot, que tiene proporciones y articulaciones distintas.
 
-	\item[\textit{rollout}]: Ejecución completa de un episodio con una política ya entrenada,
-	empleada para medir su tasa de éxito.
+	\item[\textit{Rollout}]: Ejecución completa de un episodio con una política ya entrenada,
+	empleada para medir su tasa de éxito, es decir, cada una de las pruebas.
 
-	\item[teleoperación]: Control directo del robot por parte de una persona, aquí mediante unas
-	gafas de realidad mixta y sus mandos, con el propósito de generar las demostraciones.
+	\item[Semilla (\textit{seed})]: Valor que inicializa el generador de números pseudoaleatorios.
+	Fijarla hace reproducible el sorteo de las condiciones iniciales, y es lo que permite enfrentar
+	a ambas políticas exactamente a las mismas escenas.
 
-	\item[USD]: \textit{Universal Scene Description}. Formato de descripción de escenas
+	\item[Sim2Real]: Traslación al robot físico de una política entrenada en simulación, y pérdida
+	de rendimiento que suele acompañarla por las diferencias entre el simulador y el mundo real.
+
+	\item[Tasa de éxito]: Proporción de episodios en los que la válvula supera media vuelta de
+	apertura. Es la métrica principal del trabajo.
+
+	\item[Teleoperación]: Control directo del robot por parte de una persona, aquí mediante unas
+	gafas de realidad mixta y sus mandos, con el propósito de generar las demostraciones para
+	elaborar un \textit{dataset}.
+
+	\item[USD (\textit{Universal Scene Description})]: Formato de descripción de escenas
 	tridimensionales sobre el que se apoyan Omniverse e Isaac Sim.
 
-	\item[VLA]: \textit{Vision-Language-Action}. Modelo que recibe imágenes y una instrucción en
+	\item[VLA (\textit{Vision-Language-Action})]: Modelo que recibe imágenes y una instrucción en
 	lenguaje natural y produce directamente acciones de control.
 
-	\item[WBC]: \textit{Whole-Body Control}, control de cuerpo completo. Conjunto de técnicas que
+	\item[WBC (\textit{Whole-Body Control})]: Control de cuerpo completo. Conjunto de técnicas que
 	coordinan todas las articulaciones del robot para mantener el equilibrio mientras se ejecuta
 	una tarea con los brazos.
 
