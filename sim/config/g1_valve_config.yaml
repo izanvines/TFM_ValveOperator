@@ -19,7 +19,7 @@ task_index: 0
 # Name of the HDF5 file to use for the dataset (matches the recorder output from
 # isaaclab_arena/scripts/imitation_learning/record_demos.py per static_apple/step_2_teleoperation;
 # rename here if you choose a different --dataset_file in step 2).
-hdf5_name: "sesion_01_office_ok.hdf5"
+hdf5_name: "valve_100.hdf5"
 
 # HDF5 datafield names (matches the schema written by record_demos.py +
 # isaaclab_arena.utils.isaaclab_utils.recorders.ArenaEnvRecorderManagerCfg)

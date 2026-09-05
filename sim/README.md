@@ -104,6 +104,28 @@ Van montados en el contenedor como `/eval/arena_extras/` (el mount `~/eval` → 
 **No uses la acción de ceros para medir nada**: el índice `[19]` es `base_height_cmd` y un cero
 pide pelvis a 0 m — el robot se sienta y cualquier medida describe a un robot tumbado.
 
+## Versiones exactas para reproducirlo en otra máquina
+
+Los parches de `patches/` se aplican sobre estos commits, no sobre «la última versión»:
+
+| Componente | Base | Cómo obtenerla |
+|---|---|---|
+| Isaac Lab Arena | rama `release/0.2.1`, commit `0a1b8c2345691c2f225b4a01b96dbe4d0aeb221c` | `git clone -b release/0.2.1 https://github.com/isaac-sim/IsaacLab-Arena && git checkout 0a1b8c23` |
+| Isaac Lab (submódulo de Arena) | `e57379c634b42db5a0fe9f754341be6e2a7c7c43` (el que fija Arena 0.2.1) | `git submodule update --init`; luego `git apply patches/isaaclab_submodule.patch` dentro del submódulo |
+| Isaac-GR00T (para el ajuste fino y el servidor) | etiqueta `n1.7-release` | clon aparte, con su propio venv (ver `TRAIN.md`); el submódulo que Arena fija (`e29d8fc5`) es N1.5 y no sirve |
+| Isaac Sim | 6.0.0 (`nvcr.io/nvidia/isaac-sim:6.0.0-dev2`) | imagen base del contenedor de Arena |
+| LeRobot | 0.3.3 | venv propio (ver `TRAIN.md`) |
+
+Orden: clonar Arena en la base indicada, inicializar submódulos, copiar lo de `environments/`,
+`assets/` y `config/` a su sitio (`./sync.sh push` imprime las rutas), aplicar los parches de
+`patches/` con `git apply` en Arena y en el submódulo de Isaac Lab, y construir el contenedor con
+`./docker/run_docker.sh`. `lightwheel_reintento_5xx.py` se copia dentro del contenedor una vez
+construido, porque el fichero que parchea solo existe ahí.
+
+`tools/valve_placeholder/` guarda la válvula procedural de las primeras pruebas
+(`valve_handwheel_v1.usda`) y los guiones que la generaban; no se usa en el sistema definitivo, que
+emplea el CAD de `assets/`, pero es parte de lo desarrollado.
+
 ## Mantener esto y el checkout vivo sincronizados
 
 ```bash

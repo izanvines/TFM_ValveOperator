@@ -51,8 +51,9 @@ del mismo tipo no arregla el 8–15 % de fallo restante.
 ## Reproducir
 
 1. **Simulación**: un *checkout* de [Isaac Lab Arena](https://github.com/isaac-sim/IsaacLab-Arena)
-   0.2.1 con los parches de `sim/patches/` y los ficheros de `sim/` (`sim/sync.sh push` los copia y
-   dice cómo aplicar los parches). Todo corre dentro del contenedor de Isaac Sim 6.0.
+   en el commit exacto que indica `sim/README.md` (§ Versiones exactas), con los parches de
+   `sim/patches/` y los ficheros de `sim/` (`sim/sync.sh push` los copia y dice cómo aplicar los
+   parches). Todo corre dentro del contenedor de Isaac Sim 6.0.
 2. **Grabar**: `LAUNCH.md`, modos B y C. Hace falta un visor PICO 4 Ultra y CloudXR.
 3. **Fondo**: `LAUNCH.md`, modo D, con el activo de `reconstruction/`.
 4. **Entrenar y evaluar**: `TRAIN.md`. GR00T y ACT viven en dos entornos de Python distintos del
