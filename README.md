@@ -42,7 +42,7 @@ del mismo tipo no arregla el 8–15 % de fallo restante.
 | [`sim/`](sim/README.md) | La tarea `g1_valve`: entorno, válvula, parches sobre Arena, guiones de medida y ejecución |
 | [`train/`](train/README.md) | Reproducción con fondo, verificación de datos, servidores de política, subconjuntos, latencia, figuras |
 | [`reconstruction/`](reconstruction/README.md) | La reconstrucción de la oficina con fVDB y COLMAP |
-| [`docs/memoria/`](docs/memoria/README.md) | La memoria en LaTeX y su [PDF](docs/memoria/Plantilla_Principal_TFM_MARSI.pdf) |
+| [`docs/TFM_ValveOperator.pdf`](docs/TFM_ValveOperator.pdf) | La memoria del TFM |
 | [`docs/figuras/`](docs/figuras/) | Las figuras de resultados, en PDF y PNG |
 | [`docs/resultados_100demos.md`](docs/resultados_100demos.md) | El análisis completo de los resultados |
 | [`docs/notas/`](docs/notas/README.md) | Las notas de trabajo fechadas, de julio a agosto |
@@ -58,7 +58,6 @@ del mismo tipo no arregla el 8–15 % de fallo restante.
 4. **Entrenar y evaluar**: `TRAIN.md`. GR00T y ACT viven en dos entornos de Python distintos del
    simulador; la cadena completa de las 100 demostraciones está en `sim/scripts/pipeline_valve_100.sh`,
    `train_valve_100.sh`, `eval_valve_100.sh` y `noche_final.sh`, reanudables.
-5. **Memoria**: `docs/memoria/compilar.sh`.
 
 Hardware con el que se hizo: una estación con dos RTX PRO 6000 Blackwell (96 GB), Ubuntu 24.04.
 
