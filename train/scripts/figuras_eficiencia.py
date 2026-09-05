@@ -105,20 +105,7 @@ def figura_curva(datos, salida):
         ax.set_xlabel("demostraciones de entrenamiento")
         ax.set_title(titulo, color=TINTA, loc="left", fontweight="bold")
     ejes[0].set_ylabel("tasa de éxito")
-    fig.suptitle("Eficiencia en datos: 25, 50 y 100 demostraciones",
-                 x=0.09, y=1.08, ha="left", fontsize=12, fontweight="bold", color=TINTA)
     fig.subplots_adjust(wspace=0.12)
-    fig.text(0.09, -0.28,
-             "100 tiradas por punto, semilla 42: los seis entrenamientos se evalúan sobre las "
-             "mismas condiciones iniciales. Barras: intervalo\n"
-             "de Wilson al 95 %. Los subconjuntos de 25 y 50 son estratificados (12F/13C y "
-             "25F/25C), así que entre puntos solo cambia la\n"
-             "cantidad de datos. Cada punto es un único entrenamiento: la variación mezcla el "
-             "efecto de los datos con la varianza de semilla,\n"
-             "y ninguna diferencia dentro de una misma política es significativa (McNemar "
-             "emparejado, p ≥ 0,11 en los dos paneles): con esta\n"
-             "tarea, 25 demostraciones ya saturan lo que el tamaño del dataset puede dar.",
-             ha="left", fontsize=8.5, color=TINTA_2)
     _guarda(fig, salida, "fig8_curva_eficiencia")
 
 
@@ -164,16 +151,6 @@ def figura_latencia(medidas, salida):
     ax.set_ylim(-0.5, 1.62)
     ax.invert_yaxis()
     ax.set_xlabel("milisegundos por chunk de acciones  (escala logarítmica)")
-    fig.suptitle("Coste de inferencia contra el presupuesto de tiempo real",
-                 x=0.09, y=1.12, ha="left", fontsize=12, fontweight="bold", color=TINTA)
-    fig.text(0.09, -0.34,
-             "Medido en lazo cerrado dentro del simulador (10 tiradas por política), no con un "
-             "tensor sintético. Punto: mediana;\nlínea: del mínimo al máximo; nube: las "
-             "medidas individuales. Se descarta la primera llamada de cada política\n(485 y 198 "
-             "ms), que es compilación de kernels. Ninguna de las 226 medidas se sale del "
-             "presupuesto: los 60× de\ndiferencia en parámetros cuestan 10× en latencia y aun "
-             "así ambas caben con holgura.",
-             ha="left", fontsize=8.5, color=TINTA_2)
     _guarda(fig, salida, "fig9_latencia")
 
 

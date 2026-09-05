@@ -82,14 +82,7 @@ def figura_reparto(disp, salida):
     ax.set_xticks(x)
     ax.set_xticklabels(etiquetas, color=TINTA)
     ax.set_ylabel("demostraciones")
-    ax.set_title("Disposición de la válvula en el dataset", loc="left", fontsize=12,
-                 fontweight="bold", color=TINTA, pad=24)
     ax.legend(loc="lower left", bbox_to_anchor=(0, 1.01), ncol=2)
-    fig.text(0.02, -0.06,
-             "La disposición se sortea al 50 % en cada reset; nadie forzó el equilibrio. Las "
-             "sesiones 02-03 salieron\ncargadas de cenitales y las 04-05 al revés, y el total "
-             "quedó en 50/50 por casualidad.",
-             ha="left", fontsize=8.5, color=TINTA_2)
     _guarda(fig, salida, "fig5_reparto_disposiciones")
 
 
@@ -105,13 +98,6 @@ def figura_duracion(pasos, salida):
             fontweight="bold", va="top")
     ax.set_xlabel("duración de la demostración (s)")
     ax.set_ylabel("demostraciones")
-    ax.set_title("Cuánto dura abrir la válvula", loc="left", fontsize=12, fontweight="bold",
-                 color=TINTA, pad=14)
-    fig.text(0.02, -0.08,
-             f"n = {len(seg)} demostraciones, {seg.sum() / 60:.0f} min en total. El episodio se "
-             "corta solo al detectar el éxito,\nasí que esto mide la tarea, no el presupuesto de "
-             "30 s con el que se grabó.",
-             ha="left", fontsize=8.5, color=TINTA_2)
     _guarda(fig, salida, "fig6_duracion_episodios")
 
 
@@ -147,15 +133,6 @@ def figura_std_acciones(acciones, salida):
     ax.set_yticklabels(NOMBRES_ACCION, color=TINTA, fontsize=8.5)
     ax.set_xlim(0, max(std) * 1.22)
     ax.set_xlabel("desviación típica sobre las 100 demostraciones")
-    # El numero va calculado, no escrito: con `sesion_01` (empujar) eran 8 porque las manos no
-    # se movian, y con el dataset definitivo (agarre) son 6. Un titulo a mano se queda viejo.
-    ax.set_title(f"Las {len(std)} dimensiones de la acción, y las {int(cero.sum())} que no se mueven",
-                 loc="left", fontsize=12, fontweight="bold", color=TINTA, pad=14)
-    fig.text(0.02, -0.05,
-             f"{int(cero.sum())} de {len(std)} dimensiones tienen desviación típica exactamente "
-             "cero. La normalización divide por ese\nvalor: o da división por cero, o un épsilon "
-             "que amplifica el ruido hasta hacerlo señal.",
-             ha="left", fontsize=8.5, color=TINTA_2)
     _guarda(fig, salida, "fig7_std_espacio_accion")
     return std, cero
 

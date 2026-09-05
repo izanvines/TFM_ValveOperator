@@ -99,12 +99,6 @@ def figura_pipeline(salida):
     _flecha(ax, (4.1, 2.07), (6.2, 1.80), color=AZUL)
     _flecha(ax, (4.1, 0.87), (6.2, 1.20), color=NARANJA)
 
-    ax.text(0.1, 4.75, "De la teleoperación a la tasa de éxito", fontsize=12,
-            fontweight="bold", color=TINTA, ha="left", va="center")
-    ax.text(0.1, 0.10,
-            "Las dos vías consumen la misma conversión y se evalúan sobre el mismo banco: "
-            "cualquier diferencia procede del método.",
-            fontsize=8.5, color=TINTA_2, ha="left", va="center")
     _guarda(fig, salida, "pipeline")
 
 
@@ -146,12 +140,6 @@ def figura_arquitectura(salida):
     for y, c in ((3.42, AZUL), (2.37, NARANJA), (1.32, TINTA_3)):
         _flecha(ax, (4.4, 2.31), (6.0, y), estilo="<|-|>", color=c, curva=0.10, lw=1.2)
 
-    ax.text(0.1, 4.95, "Arquitectura: un cliente, tres servidores intercambiables",
-            fontsize=12, fontweight="bold", color=TINTA, ha="left", va="center")
-    ax.text(0.1, 0.22,
-            "Las bibliotecas de aprendizaje fijan versiones incompatibles con las del simulador, "
-            "así que viven en entornos separados.",
-            fontsize=8.5, color=TINTA_2, ha="left", va="center")
     _guarda(fig, salida, "arquitectura")
 
 
@@ -196,8 +184,6 @@ def figura_gantt(salida):
     ax.legend(loc="upper right", frameon=False, fontsize=8.5, ncol=2,
           bbox_to_anchor=(1.0, 1.02))
 
-    fig.suptitle("Planificación del proyecto", x=0.02, y=1.04, ha="left",
-                 fontsize=12, fontweight="bold", color=TINTA)
     _guarda(fig, salida, "gantt")
 
 
@@ -254,8 +240,6 @@ def figura_riesgos(salida):
     fig.text(1.005, 0.90, leyenda, fontsize=8.5, color=TINTA_2, va="top", ha="left",
              transform=ax.transAxes, linespacing=1.9)
 
-    fig.suptitle("Matriz de riesgos", x=0.02, y=1.02, ha="left",
-                 fontsize=12, fontweight="bold", color=TINTA)
     _guarda(fig, salida, "riesgos")
 
 

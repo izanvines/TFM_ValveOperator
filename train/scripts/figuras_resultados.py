@@ -22,7 +22,7 @@ RL. La perdida es un error de regresion contra las acciones del operador: que ba
 la red copia bien las demostraciones, **no** que el robot abra la valvula. Una politica puede
 tener una perdida excelente y 0 % de exito si aprende la media de las demostraciones. La
 evidencia de aprendizaje aqui es la tasa de exito en simulacion; la perdida solo dice que la
-optimizacion convergio. El pie de la figura 1 lo deja escrito.
+optimizacion convergio. El pie de LaTeX de la figura 1 lo deja escrito.
 """
 
 import argparse
@@ -183,16 +183,7 @@ def figura_perdida(dir_gr00t, log_act, salida):
         else:
             ax.set_title(f"{nombre} — sin datos", color=TINTA_3, loc="left")
             ax.set_xticks([]); ax.set_yticks([])
-    # `bbox="tight"` recorta al contenido, asi que el titulo general y el pie hay que
-    # separarlos a mano o pisan el titulo del panel y las etiquetas del eje.
-    fig.suptitle("Convergencia del entrenamiento", x=0.09, y=1.10, ha="left", fontsize=12,
-                 fontweight="bold", color=TINTA)
     fig.subplots_adjust(wspace=0.28)
-    fig.text(0.09, -0.20,
-             "La pérdida es un error de regresión contra las acciones del operador: que baje "
-             "significa que la red copia bien\nlas demostraciones, no que el robot abra la "
-             "válvula. La evidencia de aprendizaje es la tasa de éxito (figura 2).",
-             ha="left", fontsize=8.5, color=TINTA_2)
     _guarda(fig, salida, "fig1_curvas_perdida")
 
 
@@ -244,15 +235,8 @@ def figura_exito(datos, salida):
     _barras_agrupadas(ax, grupos, nombres, valores, errores)
     ax.set_xticklabels(["éxito", "movió la válvula"], color=TINTA)
     ax.set_ylabel("proporción de rollouts")
-    ax.set_title("Tasa de éxito en simulación", loc="left", fontsize=12,
-                 fontweight="bold", color=TINTA, pad=28)
     # Leyenda FUERA del area de dibujo: dentro pisaba las etiquetas de valor.
     ax.legend(loc="lower left", bbox_to_anchor=(0, 1.01), ncol=len(nombres))
-    n_txt = " · ".join(f"{n}: n={len(datos[n])}" for n in nombres)
-    pie = (n_txt + ". Barras de error: intervalo de Wilson al 95 %. «Movió la válvula» es la "
-           "métrica de progreso" + "\n" + "parcial (revolute_joint_moved_rate): distingue no "
-           "llegar a tocarla de girarla sin completar media vuelta.")
-    fig.text(0.02, -0.04, pie, ha="left", fontsize=8.5, color=TINTA_2)
     _guarda(fig, salida, "fig2_tasa_exito")
 
 
@@ -278,13 +262,6 @@ def figura_angulos(datos, salida):
                         xytext=(6, 6), textcoords="offset points",
                         color=TINTA_2, fontsize=8.5, ha="left", va="bottom")
     ejes[-1].set_xlabel("ángulo final del volante (grados)")
-    fig.suptitle("Hasta dónde llega el volante en cada rollout", x=0.06, ha="left",
-                 fontsize=12, fontweight="bold", color=TINTA)
-    fig.text(0.06, -0.10,
-             "Un fallo a 170° y un fallo a 10° cuentan igual en la tasa de éxito y no son lo "
-             "mismo: el primero es\nuna política que casi resuelve la tarea, el segundo una que "
-             "no la ha aprendido.",
-             ha="left", fontsize=8.5, color=TINTA_2)
     _guarda(fig, salida, "fig3_distribucion_angulo")
 
 
@@ -318,22 +295,11 @@ def figura_disposicion(datos, salida):
                     color=TINTA, fontsize=9.5, fontweight="bold")
             ax.text(xp, 0.02, f"n={nn}", ha="center", va="bottom", color="white", fontsize=8)
     ax.set_xticks(x)
-    # Etiquetas de una sola linea: las de dos lineas se solapaban con el pie de la figura.
     ax.set_xticklabels(["frontal", "cenital"], color=TINTA)
     ax.set_ylim(0, 1.12)
     ax.yaxis.set_major_formatter(PercentFormatter(1.0))
     ax.set_ylabel("tasa de éxito")
-    ax.set_title("¿Generaliza a las dos disposiciones?", loc="left", fontsize=12,
-                 fontweight="bold", color=TINTA, pad=14)
     ax.legend(loc="upper right", ncol=2)
-    # El pie decia "se sortea 50/50" a secas y justo debajo se leen n=84 y n=116: parecia una
-    # contradiccion. Lo 50/50 es el SORTEO; el reparto observado es el que salio de el.
-    fig.text(0.02, -0.04,
-             "Frontal: volante de frente. Cenital: volante hacia arriba. La disposición se sortea "
-             "al 50 % en cada reset, igual que\ndurante la grabación; la n bajo cada barra es el "
-             "reparto que salió del sorteo. Una diferencia grande entre las dos\ncolumnas dice qué "
-             "hay que grabar más, no que la política sea mala.",
-             ha="left", fontsize=8.5, color=TINTA_2)
     _guarda(fig, salida, "fig4_exito_por_disposicion")
 
 
